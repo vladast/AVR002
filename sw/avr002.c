@@ -83,15 +83,13 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
     if(rq->bRequest == REQ_GET_HEADER) // set the application header code
     {
         uchar data = 0;
-        uchar buffer[3];
 
-        //eeprom_read_block(&data, 0, 1);
-        eeprom_read_block(buffer, 0, 3);
+        eeprom_read_block(&data, 0, 1);
 
-        dataBuffer[0] = buffer[0];//gCounter;//0xff;
-        dataBuffer[1] = buffer[1];//isPinPressed(PINUP);//isPinPressed(PINB3);//(PINB & (1 << PINB4)) == (1 << PINB4);//0xff;
-        dataBuffer[2] = buffer[2];//isPinPressed(PINDOWN); //isPinPressed(PINB4);
-        dataBuffer[3] = data;//0x01;
+        dataBuffer[0] = gCounter;
+        dataBuffer[1] = isPinPressed(SWITCH1);
+        dataBuffer[2] = isPinPressed(SWITCH2);
+        dataBuffer[3] = data;
         usbMsgPtr = (unsigned short)dataBuffer;
         return 4;
     }
@@ -209,7 +207,7 @@ int __attribute__((noreturn)) main(void)
         case START:
             break;
         case INIT:
-            if(isPinPressed(PINUP) && isPinPressed(PINDOWN))
+            if(isPinPressed(SWITCH3))
             {
                 state = RECORD;
                 initTimers();
