@@ -1,0 +1,17 @@
+usbdrv/oddebug.c
+usbdrv/oddebug.h
+usbdrv/usbconfig-prototype.h
+usbdrv/usbdrv.c
+usbdrv/usbdrv.h
+usbdrv/usbportability.h
+avr001.c
+reqdefs.h
+usbdefs.h
+Makefile
+usbconfig.h
+TinyWireM.h
+USI_TWI_Master.h
+TinyWireM.c
+USI_TWI_Master.c
+usi_i2c_master.h
+usi_i2c_master.c
