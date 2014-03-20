@@ -16,16 +16,21 @@
 #include "usbdrv.h"
 #include "oddebug.h"
 #include "reqdefs.h"
-#include "USI_TWI_Master.h"
-#include "TinyWireM.h"
-#include "usi_i2c_master.h"
+//#include "USI_TWI_Master.h"
+//#include "TinyWireM.h"
+//#include "usi_i2c_master.h"
 
 
 #define MEM_24C64_ADDRESS   0x50
 
 #define TIMER1_PRESCALER_16384
-#define PINUP   PINB3
-#define PINDOWN PINB4
+#define SWITCH1 PINC1
+#define SWITCH2 PINC2
+#define SWITCH3 PINC3
+#define STATUS  PORTC0
+
+#define FALSE   0
+#define TRUE    1
 
 volatile uint8_t timer0_ticks;
 volatile uint16_t gCounter;
@@ -67,7 +72,7 @@ state_t state = INIT;
 
 int isPinPressed(int pin)
 {
-    return (PINB & (1 << pin)) != (1 << pin);
+    return (PINC & (1 << pin)) != (1 << pin);
 }
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
@@ -115,6 +120,7 @@ ISR(TIM0_OVF_vect)
 /* ------------------------------------------------------------------------- */
 ISR(TIM1_OVF_vect)
 {
+/*
     if(++gOffsetCounter == 3)
     {
         TCNT1 = 61;
@@ -126,10 +132,12 @@ ISR(TIM1_OVF_vect)
     }
 
     ++gCounter;
+*/
 }
 
 void initTimers()
 {
+/*
     TCNT0 = 0x00;
     TCNT1 = 60;
 
@@ -144,6 +152,7 @@ void initTimers()
 #else
     TCCR1 = (1 << CS13) | (1 << CS11) | (1 << CS10);
 #endif
+*/
 }
 
 void disableTimers()
@@ -151,97 +160,21 @@ void disableTimers()
     TIMSK &= ~((1 << TOIE0) | (1 << TOIE1));
 }
 
-#define abs(x) ((x) > 0 ? (x) : (-x))
-
-// Called by V-USB after device reset
-void    usbEventResetReady(void)
-{
-    int frameLength, targetLength = (unsigned)(1499 * (double)F_CPU / 10.5e6 + 0.5);
-    int bestDeviation = 9999;
-    uchar trialCal, bestCal, step, region;
-
-    // do a binary search in regions 0-127 and 128-255 to get optimum OSCCAL
-    for(region = 0; region <= 1; region++) {
-        frameLength = 0;
-        trialCal = (region == 0) ? 0 : 128;
-
-        for(step = 64; step > 0; step >>= 1) {
-            if(frameLength < targetLength) // true for initial iteration
-                trialCal += step; // frequency too low
-            else
-                trialCal -= step; // frequency too high
-
-            OSCCAL = trialCal;
-            frameLength = usbMeasureFrameLength();
-
-            if(abs(frameLength-targetLength) < bestDeviation) {
-                bestCal = trialCal; // new optimum found
-                bestDeviation = abs(frameLength -targetLength);
-            }
-        }
-    }
-
-    OSCCAL = bestCal;
-}
-
-/* EXTERN EEPROM */
-/*
-void begin(){ // initialize I2C lib
-  USI_TWI_Master_Initialise();
-}
-
-void beginTransmission(uint8_t slaveAddr){ // setup address & write bit
-  USI_BufIdx = 0;
-  USI_Buf[USI_BufIdx] = (slaveAddr<<TWI_ADR_BITS) | USI_SEND;
-}
-
-void send(uint8_t data){ // buffers up data to send
-  if (USI_BufIdx >= USI_BUF_SIZE) return;         // dont blow out the buffer
-  USI_BufIdx++;                                   // inc for next byte in buffer
-  USI_Buf[USI_BufIdx] = data;
-}
-
-uint8_t endTransmission(){ // actually sends the buffer
-  short xferOK = 0; //false;
-  uint8_t errorCode = 0;
-  xferOK = USI_TWI_Start_Read_Write(USI_Buf,USI_BufIdx+1); // core func that does the work
-  USI_BufIdx = 0;
-  if (xferOK != 0) return 0;
-  else {                                  // there was an error
-    errorCode = USI_TWI_Get_State_Info(); // this function returns the error number
-    return errorCode;
-  }
-}
-
-uint8_t requestFrom(uint8_t slaveAddr, uint8_t numBytes){ // setup for receiving from slave
-  short xferOK = 0; // false;
-  uint8_t errorCode = 0;
-  USI_LastRead = 0;
-  USI_BytesAvail = numBytes; // save this off in a global
-  numBytes++;                // add extra byte to transmit header
-  USI_Buf[0] = (slaveAddr<<TWI_ADR_BITS) | USI_RCVE;   // setup address & Rcve bit
-  xferOK = USI_TWI_Start_Read_Write(USI_Buf,numBytes); // core func that does the work
-  // USI_Buf now holds the data read
-  if (xferOK != 0) return 0;
-  else {                                  // there was an error
-    errorCode = USI_TWI_Get_State_Info(); // this function returns the error number
-    return errorCode;
-  }
-}
-
-uint8_t receive(){ // returns the bytes received one at a time
-  USI_LastRead++;     // inc first since first uint8_t read is in USI_Buf[1]
-  return USI_Buf[USI_LastRead];
-}
-
-uint8_t available(){ // the bytes available that haven't been read yet
-  return USI_BytesAvail - (USI_LastRead);
-}
-*/
 int __attribute__((noreturn)) main(void)
 {
+    // testing mega8
 
+    DDRC = 0x01;
 
+    while(1 == 1)
+    {
+        PORTC = 0x01;
+        _delay_ms(500);
+        PORTC = 0x00;
+        _delay_ms(500);
+    }
+
+    // testing mega8
 
 
     gCounter = 0;
@@ -396,7 +329,7 @@ int __attribute__((noreturn)) main(void)
             }
             */
 
-
+/*
             unsigned char i2c_transmit_buffer[3];
             unsigned char i2c_transmit_buffer_len = 3;
 
@@ -410,7 +343,7 @@ int __attribute__((noreturn)) main(void)
             i2c_transmit_buffer[1] = 0x01;
             i2c_transmit_buffer[2] = 2;
             USI_I2C_Master_Start_Transmission(i2c_transmit_buffer, i2c_transmit_buffer_len);
-
+*/
 
             /*
             unsigned char rdata = 9;
@@ -438,8 +371,8 @@ int __attribute__((noreturn)) main(void)
             data = rdata;
             */
 
-            //eeprom_write_block(&data, 0, 1);
-            eeprom_write_block(i2c_transmit_buffer, 0, 3);
+            eeprom_write_block(&data, 0, 1);
+            //eeprom_write_block(i2c_transmit_buffer, 0, 3);
 
 
             break;
