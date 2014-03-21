@@ -11,7 +11,7 @@ PROGRAMMER = vladast
 PROJECT = avr002
 MAIN    = $(PROJECT)
 F_CPU   = 16000000
-FUSE_L  = 0xE4 # Use internal PLL oscillator
+FUSE_L  = 0xEF # Use internal PLL oscillator
 FUSE_H  = 0xD9 # Among other, allow serial programming
 
 AVRDUDE = avrdude -c $(PROGRAMMER) -p $(DEVICE) -P /dev/ttyS0 -b 19200 -v
