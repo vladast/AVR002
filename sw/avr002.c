@@ -163,7 +163,7 @@ int __attribute__((noreturn)) main(void)
     // testing mega8
 
     DDRC = 0x01;
-
+/*
     while(1 == 1)
     {
         PORTC = 0x01;
@@ -171,6 +171,32 @@ int __attribute__((noreturn)) main(void)
         PORTC = 0x00;
         _delay_ms(500);
     }
+*/
+
+/*
+    cli(); // Clear ISR
+
+    //initTimers();
+
+    wdt_enable(WDTO_1S); // Enable watch-dog timer
+
+    usbInit();
+    usbDeviceDisconnect();
+    uchar i = 0;
+    while(--i){
+        wdt_reset();
+        _delay_ms(1);
+    }
+    usbDeviceConnect();
+
+    sei(); // enable interrupts
+
+    // TODO: Build report
+    for(;;){
+        wdt_reset();
+        usbPoll();
+    }
+*/
 
     // testing mega8
 
