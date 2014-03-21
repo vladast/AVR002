@@ -106,57 +106,8 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 // vector name for Atmega8 defined in /usr/avr/include/avr/iom8.h
 
 /* ------------------------------------------------------------------------- */
-/* -----------------------------    Timer 0    ----------------------------- */
-/* ------------------------------------------------------------------------- */
-ISR(TIMER0_OVF_vect)
-{
-    //TCNT0 = 0;
-    //PORTB ^= 0x01;
-}
-
-/* ------------------------------------------------------------------------- */
 /* -----------------------------    Timer 1    ----------------------------- */
 /* ------------------------------------------------------------------------- */
-ISR(TIMER1_OVF_vect)
-{
-/*
-    if(++gOffsetCounter == 3)
-    {
-        TCNT1 = 61;
-        gOffsetCounter = 0;
-    }
-    else
-    {
-        TCNT1 = 60;
-    }
-
-    ++gCounter;
-*/
-
-
-    /*
-    if(PORTC & (1 << PORTC0))
-    {
-        PORTC = 0x00;
-    }
-    else
-    {
-        PORTC = 0x01;
-    }
-    */
-
-    /*
-    if(gCounter == 0)
-        TCNT1 = 0x0FFF;
-
-     ++gCounter;
-     */
-
-    //++gCounter;
-    //PORTC ^= _BV(PORTC0);
-
-}
-
 ISR (TIMER1_COMPA_vect)
 {
     // action to be done every 1 sec
