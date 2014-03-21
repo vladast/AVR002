@@ -1,23 +1,23 @@
 # Name: Makefile
-# Project:          AVR001 - USB touch-switch stats
+# Project:          AVR002 - USB touch-switch stats
 # Author:           Vladimir Stankovic
-# Creation Date:    20140310
+# Creation Date:    20140321
 # Tabsize:          4
 # Copyright:        n/a
 # License:          n/a
 
-DEVICE  = attiny85
+DEVICE  = atmega8
 PROGRAMMER = vladast
-PROJECT = avr001
+PROJECT = avr002
 MAIN    = $(PROJECT)
-F_CPU   = 16500000
-FUSE_L  = 0xE1 # Use internal PLL oscillator
-FUSE_H  = 0xDF # Among other, allow serial programming
-FUSE_E  = 0xFF # Default value
+F_CPU   = 16000000
+FUSE_L  = 0xE4 # Use internal PLL oscillator
+FUSE_H  = 0xD9 # Among other, allow serial programming
+
 AVRDUDE = avrdude -c $(PROGRAMMER) -p $(DEVICE) -P /dev/ttyS0 -b 19200 -v
 
 CFLAGS  = -Iusbdrv -I. -DDEBUG_LEVEL=0
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o ./USI_TWI_Master.o ./TinyWireM.o ./usi_i2c_master.o $(MAIN).o
+OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o $(MAIN).o
 
 COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
 #COMPILE = avr-c++ -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
@@ -47,7 +47,7 @@ flash: $(MAIN).hex
 
 # rule for deleting dependent files (those which can be built by Make):
 clean:
-	rm -f $(MAIN).hex $(MAIN).lst $(MAIN).obj $(MAIN).cof $(MAIN).list $(MAIN).map $(MAIN).eep.hex $(MAIN).elf *.o usbdrv/*.o $(MAIN).s usbdrv/oddebug.s usbdrv/usbdrv.s ./USI_TWI_Master.o ./TinyWireM.o ./usi_i2c_master.o
+	rm -f $(MAIN).hex $(MAIN).lst $(MAIN).obj $(MAIN).cof $(MAIN).list $(MAIN).map $(MAIN).eep.hex $(MAIN).elf *.o usbdrv/*.o $(MAIN).s usbdrv/oddebug.s usbdrv/usbdrv.s
 
 # Generic rule for compiling C files:
 .c.o:
