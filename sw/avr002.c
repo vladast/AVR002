@@ -166,32 +166,6 @@ ISR (TIMER1_COMPA_vect)
 
 void initTimers()
 {
-/*
-    TCNT0 = 0x00;
-    TCNT1 = 60;
-
-    // enable timer overflow interrupt for Timer0
-    TIMSK = (1 << TOIE0) | (1 << TOIE1);
-
-    // start timer0 with /1024 prescaler
-    TCCR0B = (1 << CS02) | (1 << CS00);
-
-#ifdef TIMER1_PRESCALER_16384
-    TCCR1 = (1 << CS13) | (1 << CS11) | (1 << CS10) | (1 << CS12);
-#else
-    TCCR1 = (1 << CS13) | (1 << CS11) | (1 << CS10);
-#endif
-*/
-
-    /*
-    TCNT1L = 0xFF;
-    TCNT1H = 0xAF;
-    // Normal mode (WGM13:0 = 0)
-    TIMSK = _BV(TOIE1);
-    TCCR1A = 0;
-    TCCR1B = _BV(CS12) | _BV(CS10);
-    */
-
     // OCRn =  [ (clock_speed / Prescaler_value) * Desired_time_in_Seconds ] - 1
     OCR1A = 15624; // 1sec
 
@@ -200,7 +174,6 @@ void initTimers()
     TIMSK |= _BV(OCIE1A); // Set interrupt on compare match
 
     TCCR1B |= _BV(CS12) | _BV(CS10); // set prescaler to 1024 and start the timer
-
 }
 
 void disableTimers()
