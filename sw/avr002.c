@@ -103,20 +103,21 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 
 // vector name for ATtiny26 defined in /usr/avr/include/avr/iotn26.h
 // vector name for ATtiny25/45/85 defined in /usr/avr/include/avr/iotnx5.h
+// vector name for Atmega8 defined in /usr/avr/include/avr/iom8.h
 
 /* ------------------------------------------------------------------------- */
 /* -----------------------------    Timer 0    ----------------------------- */
 /* ------------------------------------------------------------------------- */
-ISR(TIM0_OVF_vect)
+ISR(TIMER0_OVF_vect)
 {
-    TCNT0 = 0;
+    //TCNT0 = 0;
     //PORTB ^= 0x01;
 }
 
 /* ------------------------------------------------------------------------- */
 /* -----------------------------    Timer 1    ----------------------------- */
 /* ------------------------------------------------------------------------- */
-ISR(TIM1_OVF_vect)
+ISR(TIMER1_OVF_vect)
 {
 /*
     if(++gOffsetCounter == 3)
@@ -131,6 +132,36 @@ ISR(TIM1_OVF_vect)
 
     ++gCounter;
 */
+
+
+    /*
+    if(PORTC & (1 << PORTC0))
+    {
+        PORTC = 0x00;
+    }
+    else
+    {
+        PORTC = 0x01;
+    }
+    */
+
+    /*
+    if(gCounter == 0)
+        TCNT1 = 0x0FFF;
+
+     ++gCounter;
+     */
+
+    //++gCounter;
+    //PORTC ^= _BV(PORTC0);
+
+}
+
+ISR (TIMER1_COMPA_vect)
+{
+    // action to be done every 1 sec
+    ++gCounter;
+    //PORTC ^= _BV(PORTC0);
 }
 
 void initTimers()
@@ -151,82 +182,35 @@ void initTimers()
     TCCR1 = (1 << CS13) | (1 << CS11) | (1 << CS10);
 #endif
 */
+
+    /*
+    TCNT1L = 0xFF;
+    TCNT1H = 0xAF;
+    // Normal mode (WGM13:0 = 0)
+    TIMSK = _BV(TOIE1);
+    TCCR1A = 0;
+    TCCR1B = _BV(CS12) | _BV(CS10);
+    */
+
+    // OCRn =  [ (clock_speed / Prescaler_value) * Desired_time_in_Seconds ] - 1
+    OCR1A = 15624; // 1sec
+
+    TCCR1B |= _BV(WGM12); // Mode 4, CTC on OCR1A
+
+    TIMSK |= _BV(OCIE1A); // Set interrupt on compare match
+
+    TCCR1B |= _BV(CS12) | _BV(CS10); // set prescaler to 1024 and start the timer
+
 }
 
 void disableTimers()
 {
-    TIMSK &= ~((1 << TOIE0) | (1 << TOIE1));
+    //TIMSK &= ~((1 << TOIE0) | (1 << TOIE1));
+    TIMSK ^= _BV(OCIE1A);
 }
 
 int __attribute__((noreturn)) main(void)
 {
-    // testing mega8
-
-    DDRC = 0x01;
-/*
-    while(1 == 1)
-    {
-        PORTC = 0x01;
-        _delay_ms(500);
-        PORTC = 0x00;
-        _delay_ms(500);
-    }
-*/
-
-/*
-    cli(); // Clear ISR
-
-    //initTimers();
-
-    wdt_enable(WDTO_1S); // Enable watch-dog timer
-
-    usbInit();
-    usbDeviceDisconnect();
-    uchar i = 0;
-    while(--i){
-        wdt_reset();
-        _delay_ms(1);
-    }
-    usbDeviceConnect();
-
-    sei(); // enable interrupts
-
-    // TODO: Build report
-    for(;;){
-        wdt_reset();
-        usbPoll();
-    }
-*/
-
-    // testing mega8
-
-
-    gCounter = 0;
-    gOffsetCounter = 0;
-    isUsbInitialized = FALSE;
-
-    //DDRB  = 0x09; // PB0 is output pin
-    //PORTB = (1 << PORTB0) | (1 << PORTB2);
-    PINB = (1 << PINB4) | (1 << PINB4);
-
-    cli(); // Clear ISR
-
-    //initTimers();
-
-//    wdt_enable(WDTO_1S); // Enable watch-dog timer
-
-//    usbInit();
-//    usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
-//    uchar i = 0;
-//    while(--i){             /* fake USB disconnect for > 250 ms */
-//        wdt_reset();
-//        _delay_ms(1);
-//    }
-//    usbDeviceConnect();
-
-    sei(); // enable interrupts
-
-    // Temporary
     for(;;)
     {
         switch (state) {
@@ -236,7 +220,16 @@ int __attribute__((noreturn)) main(void)
             if(isPinPressed(SWITCH3))
             {
                 state = RECORD;
+
+                gCounter = 0;
+                gOffsetCounter = 0;
+                isUsbInitialized = FALSE;
+
+                DDRC = 0x01;
+                PORTC = _BV(PORTC0);
+                cli();
                 initTimers();
+                sei();
 
 /*
                 PORT_USI |= (1<<PORT_USI_SDA);           // Enable pullup on SDA, to set high as released state.
@@ -420,12 +413,12 @@ int __attribute__((noreturn)) main(void)
 
                 cli();
 
-                wdt_enable(WDTO_1S); // Enable watch-dog timer
+                wdt_enable(WDTO_1S);
 
                 usbInit();
-                usbDeviceDisconnect();  /* enforce re-enumeration, do this while interrupts are disabled! */
+                usbDeviceDisconnect();
                 uchar i = 0;
-                while(--i){             /* fake USB disconnect for > 250 ms */
+                while(--i){
                     wdt_reset();
                     _delay_ms(1);
                 }
@@ -448,14 +441,11 @@ int __attribute__((noreturn)) main(void)
             break;
         }
 
-        //wdt_reset();
-        //usbPoll();
-
         if(gCounter == 5)
         {
             //cli();
             gCounter = 0;
-            //PORTB ^= 0x01; // Toggling PB0
+            PORTC ^= _BV(PORTC0);
             //sei();
         }
     }
