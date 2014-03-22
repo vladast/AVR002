@@ -19,10 +19,7 @@
 #include "usbdrv.h"
 #include "oddebug.h"
 #include "reqdefs.h"
-//#include "USI_TWI_Master.h"
-//#include "TinyWireM.h"
-//#include "usi_i2c_master.h"
-#include "TWI_Master.h"
+
 #include "24c64.h"
 
 
