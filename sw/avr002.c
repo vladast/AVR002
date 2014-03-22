@@ -22,14 +22,28 @@
 
 #include "24c64.h"
 
-
-#define MEM_24C64_ADDRESS   0x50
-
 #define TIMER1_PRESCALER_16384
-#define SWITCH1 PINC1
-#define SWITCH2 PINC2
-#define SWITCH3 PINC3
-#define STATUS  PORTC0
+
+#define SWITCH1             PINC1
+#define SWITCH2             PINC2
+#define SWITCH3             PINC3
+#define STATUS              PORTC0
+
+#define SW_WITH             SWITCH1
+#define SW_THROW            SWITCH2
+#define SW_WITHOUT          SWITCH3
+
+#define REQ_GET_STATE       REQ_GET_DATA1
+#define REQ_GET_SESSION     REQ_GET_DATA2
+#define REQ_GET_ERROR       REQ_GET_DATA3
+
+#define REQ_RESET_SESSION   REQ_SET_DATA2
+
+#define MEMLOC_STATE        0x00
+#define MEMLOC_SESSION      0x01
+#define MEMLOC_ERROR        0x02
+
+#define MEM_HW_ADDRESS      0x50
 
 #define FALSE   0
 #define TRUE    1
@@ -41,29 +55,15 @@ short isUsbInitialized;
 
 static uchar currAddress = 0;
 static uchar bytesRemaining = 0;
-/*
-// EEPROM
 
-#include <inttypes.h>
-#define USI_SEND         0              // indicates sending to TWI
-#define USI_RCVE         1              // indicates receiving from TWI
-#define USI_BUF_SIZE    16              // bytes in message buffer
-
-static uint8_t USI_Buf[USI_BUF_SIZE];             // holds I2C send and receive data
-static uint8_t USI_BufIdx = 0;                    // current number of bytes in the send buff
-static uint8_t USI_LastRead = 0;                  // number of bytes read so far
-static uint8_t USI_BytesAvail = 0;                // number of bytes requested but not read
-
-// EEPROM
-*/
 
 typedef enum
 {
-    START,
-    INIT,
-    RECORD,
-    UPLOAD,
-    DELETE
+    START   = 0xA1,
+    INIT    = 0xB2,
+    RECORD  = 0xC3,
+    UPLOAD  = 0xD4,
+    DELETE  = 0xE5
 } state_t;
 
 state_t state = INIT;
