@@ -12,6 +12,9 @@
 #include <avr/eeprom.h>
 #include <util/delay.h>
 
+//#include <ioavr.h>
+//#include <inavr.h>
+
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
 #include "usbdrv.h"
 #include "oddebug.h"
@@ -19,6 +22,8 @@
 //#include "USI_TWI_Master.h"
 //#include "TinyWireM.h"
 //#include "usi_i2c_master.h"
+#include "TWI_Master.h"
+#include "24c64.h"
 
 
 #define MEM_24C64_ADDRESS   0x50
@@ -66,6 +71,34 @@ typedef enum
 
 state_t state = INIT;
 
+/* TWI from AVR 315 */
+#define TWI_GEN_CALL         0x00  // The General Call address is 0
+
+// Sample TWI transmission commands
+#define TWI_CMD_MASTER_WRITE 0x10
+#define TWI_CMD_MASTER_READ  0x20
+
+// Sample TWI transmission states, used in the main application.
+#define SEND_DATA             0x01
+#define REQUEST_DATA          0x02
+#define READ_DATA_FROM_BUFFER 0x03
+
+unsigned char TWI_Act_On_Failure_In_Last_Transmission ( unsigned char TWIerrorMsg )
+{
+                    // A failure has occurred, use TWIerrorMsg to determine the nature of the failure
+                    // and take appropriate actions.
+                    // Se header file for a list of possible failures messages.
+
+                    // Here is a simple sample, where if received a NACK on the slave address,
+                    // then a retransmission will be initiated.
+
+  if ( (TWIerrorMsg == TWI_MTX_ADR_NACK) | (TWIerrorMsg == TWI_MRX_ADR_NACK) )
+    TWI_Start_Transceiver();
+
+  return TWIerrorMsg;
+}
+
+
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
 /* ------------------------------------------------------------------------- */
@@ -83,13 +116,21 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
     if(rq->bRequest == REQ_GET_HEADER) // set the application header code
     {
         uchar data = 0;
+        uchar buffer[4] = {0};
 
-        eeprom_read_block(&data, 0, 1);
+        //eeprom_read_block(&data, 0, 1);
+        eeprom_read_block(buffer, 0, 4);
 
-        dataBuffer[0] = gCounter;
-        dataBuffer[1] = isPinPressed(SWITCH1);
-        dataBuffer[2] = isPinPressed(SWITCH2);
-        dataBuffer[3] = data;
+//        dataBuffer[0] = gCounter;
+//        dataBuffer[1] = isPinPressed(SWITCH1);
+//        dataBuffer[2] = isPinPressed(SWITCH2);
+//        dataBuffer[3] = data;
+
+        dataBuffer[0] = buffer[0];
+        dataBuffer[1] = buffer[1];
+        dataBuffer[2] = buffer[2];
+        dataBuffer[3] = buffer[3];
+
         usbMsgPtr = (unsigned short)dataBuffer;
         return 4;
     }
@@ -110,9 +151,8 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 /* ------------------------------------------------------------------------- */
 ISR (TIMER1_COMPA_vect)
 {
-    // action to be done every 1 sec
+    // Increment counter every 1 sec
     ++gCounter;
-    //PORTC ^= _BV(PORTC0);
 }
 
 void initTimers()
@@ -133,8 +173,18 @@ void disableTimers()
     TIMSK ^= _BV(OCIE1A);
 }
 
+void Wait()
+{
+    uint8_t i;
+
+    for(i=0;i<100;i++)
+        _delay_loop_2(0);
+}
+
 int __attribute__((noreturn)) main(void)
 {
+    unsigned char TWI_targetSlaveAddress = 0x50, TWI_operation = TRUE;
+
     for(;;)
     {
         switch (state) {
@@ -312,9 +362,189 @@ int __attribute__((noreturn)) main(void)
             data = rdata;
             */
 
-            eeprom_write_block(&data, 0, 1);
-            //eeprom_write_block(i2c_transmit_buffer, 0, 3);
+            unsigned char messageBuf[4];
 
+
+            //TWI_Master_Initialise();
+            //sei();
+            //data = TWI_Get_State_Info();
+
+            while (1 == 0 /*TWI_operation != FALSE*/)
+            {
+                if(1 == 0)
+                {
+                    //messageBuf[0] = (TWI_targetSlaveAddress<<TWI_ADR_BITS) | (FALSE<<TWI_READ_BIT); // The first byte must always consit of General Call code or the TWI slave address.
+                    messageBuf[0] = 0xA0;
+                    messageBuf[1] = 0x00; // A15 - A8 address byte
+                    messageBuf[2] = 0x00; // A7 - A0 address byte
+                    messageBuf[3] = 0xBB; // data byte
+                    TWI_Start_Transceiver_With_Data( messageBuf, 4);
+
+                    messageBuf[0] = 0xA0;
+                    messageBuf[1] = 0x00; // A15 - A8 address byte
+                    messageBuf[2] = 0x01; // A7 - A0 address byte
+                    messageBuf[3] = 0xCC; // data byte
+                    TWI_Start_Transceiver_With_Data( messageBuf, 4);
+
+                    messageBuf[0] = 0xA0;
+                    messageBuf[1] = 0x00; // A15 - A8 address byte
+                    messageBuf[2] = 0x02; // A7 - A0 address byte
+                    messageBuf[3] = 0xDD; // data byte
+                    TWI_Start_Transceiver_With_Data( messageBuf, 4);
+                    //data = TWI_Get_State_Info();
+
+                    messageBuf[0] = TWI_Get_State_Info();
+                    eeprom_write_block(messageBuf, 0, 4);
+
+                    TWI_operation = FALSE;
+                }
+                else
+                {
+                    if(TWI_operation == TRUE)
+                    {
+//                        messageBuf[0] = 0xA1;
+//                        TWI_Start_Transceiver_With_Data( messageBuf, 1);
+//                        //TWI_Get_Data_From_Transceiver( messageBuf, 1);
+//                        eeprom_write_block(messageBuf, 0, 1);
+//                        TWI_operation = READ_DATA_FROM_BUFFER;
+
+
+
+                        messageBuf[0] = 0xA1;
+                        messageBuf[1] = 0x00; // A15 - A8 address byte
+                        messageBuf[2] = 0x00; // A7 - A0 address byte
+                        //messageBuf[3] = 0x08; // dummy data
+                        TWI_Start_Transceiver_With_Data( messageBuf, 3);
+                        //TWI_Get_Data_From_Transceiver( messageBuf, 2 );
+
+                        TWI_operation = REQUEST_DATA;         // To release resources to other operations while waiting for the TWI to complete,
+                                                              // we set a operation mode and continue this command sequence in a "followup"
+                                                              // section further down in the code.
+                        //data = TWI_Get_State_Info();
+
+                        //TWI_Get_Data_From_Transceiver( messageBuf, 4);
+
+                        messageBuf[0] = TWI_Get_State_Info();
+
+                        eeprom_write_block(messageBuf, 0, 1);
+                    }
+                }
+
+                //TWI_operation = REQUEST_DATA;
+                if ( ! TWI_Transceiver_Busy() )
+                {
+                // Check if the last operation was successful
+                  if ( TWI_statusReg.lastTransOK )
+                  {
+
+                    if ( TWI_operation ) // Section for follow-up operations.
+                    {
+                    // Determine what action to take now
+                      if (TWI_operation == REQUEST_DATA)
+                      { // Request/collect the data from the Slave
+                        //messageBuf[0] = (TWI_targetSlaveAddress<<TWI_ADR_BITS) | (TRUE<<TWI_READ_BIT); // The first byte must always consit of General Call code or the TWI slave address.
+                          messageBuf[0] = 0xA1;
+                          messageBuf[1] = 0x00;
+                          messageBuf[2] = 0x00;
+                          messageBuf[3] = 0xA1;
+                        TWI_Start_Transceiver_With_Data( messageBuf, 3 );
+                        //eeprom_write_block(messageBuf, 0, 1);
+                        TWI_operation = READ_DATA_FROM_BUFFER; // Set next operation
+                      }
+                      else if (TWI_operation == READ_DATA_FROM_BUFFER)
+                      { // Get the received data from the transceiver buffer
+                        TWI_Get_Data_From_Transceiver( messageBuf, 1);
+                        //data = messageBuf[1];        // Store data on PORTB.
+                        TWI_operation = FALSE;        // Set next operation
+
+                        eeprom_write_block(messageBuf, 0, 4);
+                      }
+                    }
+                  }
+                  else // Got an error during the last transmission
+                  {
+                      data = 9;
+                    // Use TWI status information to detemine cause of failure and take appropriate actions.
+                    TWI_Act_On_Failure_In_Last_Transmission( TWI_Get_State_Info( ) );
+                    eeprom_write_block(&data, 0, 1);
+                  }
+                }
+            }
+
+            //eeprom_write_block(&data, 0, 1);
+
+
+            //Init EEPROM
+            EEOpen();
+
+            _delay_loop_2(0);
+
+            Wait();
+
+            uint8_t failed = 0;
+            uint16_t address = 0;
+
+            int read = 1;
+
+            if(read == 0)
+            {
+
+//                if(EEWriteByte(address,7) == 0)
+//                {
+//                    failed=1;
+//                    Wait();
+//                    messageBuf[0] = 6;
+//                    messageBuf[1] = 6;
+//                    messageBuf[2] = 6;
+//                    messageBuf[3] = 6;
+//                }
+//                else
+//                {
+//                    Wait();
+//                    messageBuf[0] = 7;
+//                    messageBuf[1] = 7;
+//                    messageBuf[2] = 7;
+//                    messageBuf[3] = 7;
+//                }
+
+                uint16_t i;
+                for (i = 0; i < 4; ++i)
+                {
+                    EEWriteByte(i, i);
+                    Wait();
+                }
+            }
+            else
+            {
+
+//                if(EEReadByte(address) != 7)
+//                {
+//                    failed=1;
+//                    Wait();
+//                    messageBuf[0] = 3;
+//                    messageBuf[1] = 3;
+//                    messageBuf[2] = 3;
+//                    messageBuf[3] = 3;
+//                }
+//                else
+//                {
+//                    Wait();
+//                    messageBuf[0] = 4;
+//                    messageBuf[1] = 4;
+//                    messageBuf[2] = 4;
+//                    messageBuf[3] = 4;
+//                }
+
+                uint16_t i;
+                for (i = 0; i < 4; ++i)
+                {
+                    messageBuf[i] = EEReadByte(i);
+                    Wait();
+                }
+            }
+
+            eeprom_write_block(messageBuf, 0, 4);
+            PORTC ^= _BV(PORTC0);
 
             break;
         }
@@ -369,7 +599,7 @@ int __attribute__((noreturn)) main(void)
         {
             //cli();
             gCounter = 0;
-            PORTC ^= _BV(PORTC0);
+            //PORTC ^= _BV(PORTC0);
             //sei();
         }
     }
