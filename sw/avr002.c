@@ -29,9 +29,14 @@
 #define SWITCH3             PINC3
 #define STATUS              PORTC0
 
-#define SW_WITH             SWITCH1
-#define SW_THROW            SWITCH2
-#define SW_WITHOUT          SWITCH3
+#define BUTTON_WITH         SWITCH1
+#define BUTTON_THROW        SWITCH2
+#define BUTTON_WITHOUT      SWITCH3
+
+#define SWID_UNKNOWN        0x00
+#define SWID_WITH           0xe1
+#define SWID_THROW          0xe2
+#define SWID_WITHOUT        0xe3
 
 #define REQ_GET_STATE       REQ_GET_DATA1
 #define REQ_GET_SESSION     REQ_GET_DATA2
@@ -39,20 +44,31 @@
 
 #define REQ_RESET_SESSION   REQ_SET_DATA2
 
-#define MEMADDR_STATE        0
-#define MEMADDR_SESSION      1
-#define MEMADDR_ERROR        2
+// Predefined memory locations on CPU's EEPROM
+#define MEMADDR_STATE       0
+#define MEMADDR_SESSION     1
+#define MEMADDR_ERROR       2
+#define MEMADDR_ENTRIES     3
 
 #define MEM_HW_ADDRESS      0x50
+
+#define USB_CONNECT_CNT     1000L
 
 #define FALSE   0
 #define TRUE    1
 
-volatile uint8_t timer0_ticks;
-volatile uint16_t gCounter;
-volatile uint8_t gOffsetCounter;
-short isUsbInitialized = FALSE;
-short isStarted = FALSE;
+volatile uint8_t    timer0_ticks;
+volatile uint16_t   gCounter;
+volatile uint16_t   gUsbConnectCounter;
+volatile uint8_t    gOffsetCounter;
+volatile uint8_t    gSessionCounter;
+volatile uint16_t   gEntryCounter;
+volatile short      isButtonWithPressed = FALSE;
+volatile short      isButtonThrowPressed = FALSE;
+volatile short      isButtonWithoutPressed = FALSE;
+volatile int        idPressedButton = SWID_UNKNOWN;
+short               isUsbInitialized = FALSE;
+short               isStarted = FALSE;
 
 //static uchar currAddress = 0;
 //static uchar bytesRemaining = 0;
@@ -60,14 +76,15 @@ short isStarted = FALSE;
 
 typedef enum
 {
-    START   = 0xA1,
-    INIT    = 0xB2,
-    RECORD  = 0xC3,
-    UPLOAD  = 0xD4,
-    DELETE  = 0xE5
+    START   = 0xA1, // Device is being started
+    INIT    = 0xB2, // Initialize device
+    RECORD  = 0xC3, // Record events (touch-switch states)
+    UPLOAD  = 0xD4, // Upload records to USB host
+    DELETE  = 0xE5, // Erase external EEPROM
+    RESES   = 0xF6  // Reinit session counter
 } state_t;
 
-state_t state = INIT;
+volatile state_t state = INIT;
 
 /* ------------------------------------------------------------------------- */
 /* ----------------------------- USB interface ----------------------------- */
@@ -75,7 +92,7 @@ state_t state = INIT;
 
 int isPinPressed(int pin)
 {
-    return (PINC & (1 << pin)) != (1 << pin);
+    return ((PINC & (1 << pin)) != (1 << pin)) ? TRUE : FALSE;
 }
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
@@ -119,10 +136,44 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 /* ------------------------------------------------------------------------- */
 /* -----------------------------    Timer 0    ----------------------------- */
 /* ------------------------------------------------------------------------- */
-ISR (TIMER1_OVF_vect)
+ISR (TIMER0_OVF_vect)
 {
-    // Increment counter every 1 sec
-    ++gCounter;
+    // Toggle LED with every interrupt
+    PORTC ^= _BV(PORTC0);
+
+    isButtonWithPressed = isPinPressed(BUTTON_WITH);
+    isButtonThrowPressed = isPinPressed(BUTTON_THROW);
+    isButtonWithoutPressed = isPinPressed(BUTTON_WITHOUT);
+
+    if(isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE)
+    {
+        if(isButtonWithPressed == TRUE && isButtonThrowPressed == TRUE ||
+                isButtonWithPressed == TRUE && isButtonWithoutPressed == TRUE ||
+                isButtonThrowPressed == TRUE && isButtonWithoutPressed == TRUE)
+        {
+            // Invalid state
+        }
+        else
+        {
+            if(isButtonWithPressed == TRUE)
+            {
+                idPressedButton = SWID_WITH;
+            }
+            else if(isButtonWithoutPressed == TRUE)
+            {
+                idPressedButton = SWID_WITHOUT;
+            }
+            else if(isButtonThrowPressed == TRUE)
+            {
+                idPressedButton = SWID_THROW;
+
+                if(++gUsbConnectCounter >= USB_CONNECT_CNT)
+                    state = UPLOAD;
+                else
+                    gUsbConnectCounter = 0;
+            }
+        }
+    }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -173,7 +224,36 @@ void Wait()
         _delay_loop_2(0);
 }
 
-int __attribute__((noreturn)) main(void)
+void initSession()
+{
+    gSessionCounter = 0;
+    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
+}
+
+void createNewSession()
+{
+    eeprom_read_block(&gSessionCounter, MEMADDR_SESSION, 1);
+    ++gSessionCounter;
+    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
+}
+
+void readEntryCount()
+{
+    eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+}
+
+void storeEntryCount()
+{
+    eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+}
+
+void initEntryCount()
+{
+    gEntryCounter = 0;
+    storeEntryCount();
+}
+
+void checkStartState()
 {
     eeprom_read_block(&state, MEMADDR_STATE, 1);
 
@@ -186,7 +266,21 @@ int __attribute__((noreturn)) main(void)
         // Upon start, no state was stored --> fresh start!
         state = START;
         eeprom_write_block(&state, MEMADDR_STATE, 1);
+
+        initSession();
+        initEntryCount();
+
+        idPressedButton = SWID_UNKNOWN;
     }
+}
+
+int __attribute__((noreturn)) main(void)
+{
+    // Check whether state entry is initialized
+    checkStartState();
+
+    // Increment session number
+    createNewSession();
 
     for(;;)
     {
@@ -202,6 +296,7 @@ int __attribute__((noreturn)) main(void)
 
                 gCounter = 0;
                 gOffsetCounter = 0;
+                gUsbConnectCounter = 0;
                 isUsbInitialized = FALSE;
 
                 // Define PC0 as output
@@ -212,6 +307,13 @@ int __attribute__((noreturn)) main(void)
                 cli();
                 initTimers();
                 sei();
+
+                //Init EEPROM
+                EEOpen();
+
+                _delay_loop_2(0);
+
+                Wait();
 
             }
 
@@ -234,17 +336,12 @@ int __attribute__((noreturn)) main(void)
             uchar data = 7;//gCounter; // reading lower byte of gCounter
             //eeprom_write_block(&data, 0, 1);
 
-            state = UPLOAD;
+
 
             unsigned char messageBuf[4];
 
 
-            //Init EEPROM
-            EEOpen();
 
-            _delay_loop_2(0);
-
-            Wait();
 
             uint8_t failed = 0;
             uint16_t address = 0;
@@ -308,6 +405,7 @@ int __attribute__((noreturn)) main(void)
                 }
             }
 
+            state = UPLOAD;
             eeprom_write_block(messageBuf, 0, 4);
 
             // Temp: toggle LED
