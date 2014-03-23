@@ -39,9 +39,9 @@
 
 #define REQ_RESET_SESSION   REQ_SET_DATA2
 
-#define MEMLOC_STATE        0x00
-#define MEMLOC_SESSION      0x01
-#define MEMLOC_ERROR        0x02
+#define MEMADDR_STATE        0
+#define MEMADDR_SESSION      1
+#define MEMADDR_ERROR        2
 
 #define MEM_HW_ADDRESS      0x50
 
@@ -51,10 +51,11 @@
 volatile uint8_t timer0_ticks;
 volatile uint16_t gCounter;
 volatile uint8_t gOffsetCounter;
-short isUsbInitialized;
+short isUsbInitialized = FALSE;
+short isStarted = FALSE;
 
-static uchar currAddress = 0;
-static uchar bytesRemaining = 0;
+//static uchar currAddress = 0;
+//static uchar bytesRemaining = 0;
 
 
 typedef enum
@@ -116,6 +117,15 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 // vector name for Atmega8 defined in /usr/avr/include/avr/iom8.h
 
 /* ------------------------------------------------------------------------- */
+/* -----------------------------    Timer 0    ----------------------------- */
+/* ------------------------------------------------------------------------- */
+ISR (TIMER1_OVF_vect)
+{
+    // Increment counter every 1 sec
+    ++gCounter;
+}
+
+/* ------------------------------------------------------------------------- */
 /* -----------------------------    Timer 1    ----------------------------- */
 /* ------------------------------------------------------------------------- */
 ISR (TIMER1_COMPA_vect)
@@ -124,16 +134,29 @@ ISR (TIMER1_COMPA_vect)
     ++gCounter;
 }
 
-void initTimers()
+void initTimer0()
 {
+    TCCR0 |= _BV(CS02) | _BV(CS00);
+    TCNT0 = 0;
+    TIMSK |= _BV(TOIE0);
+}
+
+void initTimer1()
+{
+    // Using comparison for Timer1 for precision
     // OCRn =  [ (clock_speed / Prescaler_value) * Desired_time_in_Seconds ] - 1
     OCR1A = 15624; // 1sec
 
-    TCCR1B |= _BV(WGM12); // Mode 4, CTC on OCR1A
-
     TIMSK |= _BV(OCIE1A); // Set interrupt on compare match
 
-    TCCR1B |= _BV(CS12) | _BV(CS10); // set prescaler to 1024 and start the timer
+    TCCR1B |= _BV(WGM12) |              // Mode 4, CTC on OCR1A
+              _BV(CS12) | _BV(CS10);    // set prescaler to 1024
+}
+
+void initTimers()
+{
+    initTimer0();
+    initTimer1();
 }
 
 void disableTimers()
@@ -152,12 +175,27 @@ void Wait()
 
 int __attribute__((noreturn)) main(void)
 {
+    eeprom_read_block(&state, MEMADDR_STATE, 1);
+
+    if (state != START ||
+        state != INIT ||
+        state != RECORD ||
+        state != UPLOAD ||
+        state != DELETE)
+    {
+        // Upon start, no state was stored --> fresh start!
+        state = START;
+        eeprom_write_block(&state, MEMADDR_STATE, 1);
+    }
+
     for(;;)
     {
-        switch (state) {
+        switch (state)
+        {
         case START:
             break;
         case INIT:
+            eeprom_write_block(&state, MEMADDR_STATE, 1);
             if(isPinPressed(SWITCH3))
             {
                 state = RECORD;
@@ -166,8 +204,11 @@ int __attribute__((noreturn)) main(void)
                 gOffsetCounter = 0;
                 isUsbInitialized = FALSE;
 
+                // Define PC0 as output
                 DDRC = 0x01;
                 PORTC = _BV(PORTC0);
+
+                // Initialize timers
                 cli();
                 initTimers();
                 sei();
@@ -176,6 +217,7 @@ int __attribute__((noreturn)) main(void)
 
             break;
         case RECORD:
+            eeprom_write_block(&state, MEMADDR_STATE, 1);
             /*
                 uchar   usbFunctionWrite(uchar *data, uchar len)
                 {
@@ -231,7 +273,7 @@ int __attribute__((noreturn)) main(void)
 //                }
 
                 uint16_t i;
-                for (i = 0; i < 4; ++i)
+                for (i = 0; i < 40; ++i)
                 {
                     EEWriteByte(i, i);
                     Wait();
@@ -259,7 +301,7 @@ int __attribute__((noreturn)) main(void)
 //                }
 
                 uint16_t i;
-                for (i = 0; i < 4; ++i)
+                for (i = 0; i < 40; ++i)
                 {
                     messageBuf[i] = EEReadByte(i);
                     Wait();
@@ -267,11 +309,14 @@ int __attribute__((noreturn)) main(void)
             }
 
             eeprom_write_block(messageBuf, 0, 4);
+
+            // Temp: toggle LED
             PORTC ^= _BV(PORTC0);
 
             break;
         }
         case UPLOAD:
+            eeprom_write_block(&state, MEMADDR_STATE, 1);
             /*
                 uchar   usbFunctionRead(uchar *data, uchar len)
                 {
@@ -286,7 +331,6 @@ int __attribute__((noreturn)) main(void)
 
             if(isUsbInitialized == FALSE)
             {
-                //USI_TWI_Master_UnInitialise();
 
                 cli();
 
@@ -313,8 +357,10 @@ int __attribute__((noreturn)) main(void)
 
             break;
         case DELETE:
+            eeprom_write_block(&state, MEMADDR_STATE, 1);
             break;
         default:
+
             break;
         }
 
