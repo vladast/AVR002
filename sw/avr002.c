@@ -138,7 +138,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 /* ------------------------------------------------------------------------- */
 ISR (TIMER0_OVF_vect)
 {
-    // Toggle LED with every interrupt
+    // Temp: Toggle LED with every interrupt
     PORTC ^= _BV(PORTC0);
 
     isButtonWithPressed = isPinPressed(BUTTON_WITH);
@@ -167,12 +167,15 @@ ISR (TIMER0_OVF_vect)
             {
                 idPressedButton = SWID_THROW;
 
-                if(++gUsbConnectCounter >= USB_CONNECT_CNT)
+                if(gUsbConnectCounter >= USB_CONNECT_CNT)
                     state = UPLOAD;
-                else
                     gUsbConnectCounter = 0;
             }
         }
+    }
+    else
+    {
+        gUsbConnectCounter = 0;
     }
 }
 
@@ -183,6 +186,7 @@ ISR (TIMER1_COMPA_vect)
 {
     // Increment counter every 1 sec
     ++gCounter;
+    ++gUsbConnectCounter;
 }
 
 void initTimer0()
