@@ -63,10 +63,12 @@ volatile uint16_t   gUsbConnectCounter;
 volatile uint8_t    gOffsetCounter;
 volatile uint8_t    gSessionCounter;
 volatile uint16_t   gEntryCounter;
+volatile uint16_t   gEventCounter;
 volatile short      isButtonWithPressed = FALSE;
 volatile short      isButtonThrowPressed = FALSE;
 volatile short      isButtonWithoutPressed = FALSE;
 volatile int        idPressedButton = SWID_UNKNOWN;
+volatile short      isButtonValueReady = FALSE; // Returned to FALSE when written onto eeprom
 short               isUsbInitialized = FALSE;
 short               isStarted = FALSE;
 
@@ -97,26 +99,41 @@ int isPinPressed(int pin)
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
+    PORTC ^= _BV(PORTC0); // Test;toggle
+
     usbRequest_t    *rq = (usbRequest_t *)data;
     static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup returns */
 
     if(rq->bRequest == REQ_GET_HEADER) // set the application header code
     {
+        //PORTC ^= _BV(PORTC0); // Test;toggle
+
         uchar data = 0;
         uchar buffer[4] = {0};
 
         //eeprom_read_block(&data, 0, 1);
-        eeprom_read_block(buffer, 0, 4);
+        //eeprom_read_block(buffer, 0, 4);
+
+        uint16_t i;
+        for (i = 0; i < 4; ++i)
+        {
+            dataBuffer[i] = EEReadByte(i);
+            _delay_us(50);
+            //Wait();
+        }
 
 //        dataBuffer[0] = gCounter;
 //        dataBuffer[1] = isPinPressed(SWITCH1);
 //        dataBuffer[2] = isPinPressed(SWITCH2);
 //        dataBuffer[3] = data;
 
-        dataBuffer[0] = buffer[0];
-        dataBuffer[1] = buffer[1];
-        dataBuffer[2] = buffer[2];
-        dataBuffer[3] = buffer[3];
+
+        /*
+        dataBuffer[0] = rq->bRequest;//buffer[0];
+        dataBuffer[1] = rq->bRequest;//buffer[1];
+        dataBuffer[2] = rq->bRequest;//buffer[2];
+        dataBuffer[3] = rq->bRequest;//buffer[3];
+        */
 
         usbMsgPtr = (unsigned short)dataBuffer;
         return 4;
@@ -139,19 +156,24 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 ISR (TIMER0_OVF_vect)
 {
     // Temp: Toggle LED with every interrupt
-    PORTC ^= _BV(PORTC0);
+//    PORTC ^= _BV(PORTC0);
 
     isButtonWithPressed = isPinPressed(BUTTON_WITH);
     isButtonThrowPressed = isPinPressed(BUTTON_THROW);
     isButtonWithoutPressed = isPinPressed(BUTTON_WITHOUT);
 
-    if(isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE)
+    if(isButtonValueReady == FALSE)
+        PORTC ^= _BV(PORTC0);
+
+    if(isButtonValueReady == FALSE &&
+            (isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE))
     {
         if(isButtonWithPressed == TRUE && isButtonThrowPressed == TRUE ||
                 isButtonWithPressed == TRUE && isButtonWithoutPressed == TRUE ||
                 isButtonThrowPressed == TRUE && isButtonWithoutPressed == TRUE)
         {
             // Invalid state
+            PORTC ^= _BV(PORTC0);
         }
         else
         {
@@ -171,10 +193,12 @@ ISR (TIMER0_OVF_vect)
                     state = UPLOAD;
                     gUsbConnectCounter = 0;
             }
+            isButtonValueReady = TRUE;
         }
     }
     else
     {
+        idPressedButton = SWID_UNKNOWN;
         gUsbConnectCounter = 0;
     }
 }
@@ -222,10 +246,13 @@ void disableTimers()
 
 void Wait()
 {
+    /*
     uint8_t i;
 
     for(i=0;i<100;i++)
         _delay_loop_2(0);
+        */
+    _delay_us(50);
 }
 
 void initSession()
@@ -241,20 +268,22 @@ void createNewSession()
     eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
 }
 
-void readEntryCount()
+uint16_t readEntryCount()
 {
     eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+    return gEntryCounter;
 }
 
-void storeEntryCount()
+void storeEntryCount(uint16_t entryCount)
 {
+    gEntryCounter = entryCount;
     eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
 }
 
 void initEntryCount()
 {
     gEntryCounter = 0;
-    storeEntryCount();
+    storeEntryCount(gEntryCounter);
 }
 
 void checkStartState()
@@ -269,12 +298,6 @@ void checkStartState()
     {
         // Upon start, no state was stored --> fresh start!
         state = START;
-        eeprom_write_block(&state, MEMADDR_STATE, 1);
-
-        initSession();
-        initEntryCount();
-
-        idPressedButton = SWID_UNKNOWN;
     }
 }
 
@@ -291,20 +314,27 @@ int __attribute__((noreturn)) main(void)
         switch (state)
         {
         case START:
+            eeprom_write_block(&state, MEMADDR_STATE, 1);
+            initSession();
+            initEntryCount();
+
+            idPressedButton = SWID_UNKNOWN;
+            isButtonValueReady = FALSE;
+
+            state = INIT;
             break;
         case INIT:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
-            if(isPinPressed(SWITCH3))
+            if(isPinPressed(BUTTON_THROW))
             {
-                state = RECORD;
-
                 gCounter = 0;
                 gOffsetCounter = 0;
                 gUsbConnectCounter = 0;
+                gEventCounter = 0;
                 isUsbInitialized = FALSE;
 
                 // Define PC0 as output
-                DDRC = 0x01;
+                DDRC = _BV(PORTC0);
                 PORTC = _BV(PORTC0);
 
                 // Initialize timers
@@ -315,94 +345,42 @@ int __attribute__((noreturn)) main(void)
                 //Init EEPROM
                 EEOpen();
 
-                _delay_loop_2(0);
-
-                Wait();
-
+                state = RECORD;
             }
 
             break;
         case RECORD:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
-            /*
-                uchar   usbFunctionWrite(uchar *data, uchar len)
-                {
-                    if(bytesRemaining == 0)
-                        return 1;               // end of transfer
-                    if(len > bytesRemaining)
-                        len = bytesRemaining;
-                    eeprom_write_block(data, (uchar *)0 + currentAddress, len);
-                    currentAddress += len;
-                    bytesRemaining -= len;
 
-             */
-        {
-            uchar data = 7;//gCounter; // reading lower byte of gCounter
-            //eeprom_write_block(&data, 0, 1);
+            if(isButtonValueReady == TRUE)
+            {
+                uint16_t entryCount = readEntryCount();
 
+                // TODO: Write to ext. memory
+
+                // TODO: Increment entry count and store it in local eeprom
+                storeEntryCount(++entryCount);
+            }
 
 
             unsigned char messageBuf[4];
 
 
-
-
-            uint8_t failed = 0;
-            uint16_t address = 0;
-
-            int read = 1;
+            int read = 0;
 
             if(read == 0)
             {
-
-//                if(EEWriteByte(address,7) == 0)
-//                {
-//                    failed=1;
-//                    Wait();
-//                    messageBuf[0] = 6;
-//                    messageBuf[1] = 6;
-//                    messageBuf[2] = 6;
-//                    messageBuf[3] = 6;
-//                }
-//                else
-//                {
-//                    Wait();
-//                    messageBuf[0] = 7;
-//                    messageBuf[1] = 7;
-//                    messageBuf[2] = 7;
-//                    messageBuf[3] = 7;
-//                }
-
                 uint16_t i;
-                for (i = 0; i < 40; ++i)
+                for (i = 0; i < 4; ++i)
                 {
-                    EEWriteByte(i, i);
+                    EEWriteByte(i, i + 5);
                     Wait();
                 }
             }
             else
             {
-
-//                if(EEReadByte(address) != 7)
-//                {
-//                    failed=1;
-//                    Wait();
-//                    messageBuf[0] = 3;
-//                    messageBuf[1] = 3;
-//                    messageBuf[2] = 3;
-//                    messageBuf[3] = 3;
-//                }
-//                else
-//                {
-//                    Wait();
-//                    messageBuf[0] = 4;
-//                    messageBuf[1] = 4;
-//                    messageBuf[2] = 4;
-//                    messageBuf[3] = 4;
-//                }
-
                 uint16_t i;
-                for (i = 0; i < 40; ++i)
+                for (i = 0; i < 4; ++i)
                 {
                     messageBuf[i] = EEReadByte(i);
                     Wait();
@@ -416,20 +394,8 @@ int __attribute__((noreturn)) main(void)
             PORTC ^= _BV(PORTC0);
 
             break;
-        }
         case UPLOAD:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
-            /*
-                uchar   usbFunctionRead(uchar *data, uchar len)
-                {
-                    if(len > bytesRemaining)
-                        len = bytesRemaining;
-                    eeprom_read_block(data, (uchar *)0 + currentAddress, len);
-                    currentAddress += len;
-                    bytesRemaining -= len;
-                    return len;
-                }
-             */
 
             if(isUsbInitialized == FALSE)
             {
@@ -445,6 +411,7 @@ int __attribute__((noreturn)) main(void)
                     wdt_reset();
                     _delay_ms(1);
                 }
+
                 usbDeviceConnect();
 
                 sei(); // enable interrupts
@@ -472,6 +439,7 @@ int __attribute__((noreturn)) main(void)
             gCounter = 0;
             //PORTC ^= _BV(PORTC0);
             //sei();
+            ++gEventCounter;
         }
     }
 }
