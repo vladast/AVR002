@@ -95,12 +95,65 @@ int isPinPressed(int pin)
     return ((PINC & (1 << pin)) != (1 << pin)) ? TRUE : FALSE;
 }
 
+void initSession()
+{
+    gSessionCounter = 0;
+    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
+}
+
+void createNewSession()
+{
+    eeprom_read_block(&gSessionCounter, MEMADDR_SESSION, 1);
+    ++gSessionCounter;
+    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
+}
+
+uint8_t readSession()
+{
+    uint8_t sessionCount;
+    eeprom_read_block(&sessionCount, MEMADDR_SESSION, 1);
+    return sessionCount;
+}
+
+uint16_t readEntryCount()
+{
+    eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+    return gEntryCounter;
+}
+
+void storeEntryCount(uint16_t entryCount)
+{
+    gEntryCounter = entryCount;
+    eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+}
+
+void initEntryCount()
+{
+    gEntryCounter = 0;
+    storeEntryCount(gEntryCounter);
+}
+
+void checkStartState()
+{
+    eeprom_read_block(&state, MEMADDR_STATE, 1);
+
+    if (state != START ||
+        state != INIT ||
+        state != RECORD ||
+        state != UPLOAD ||
+        state != DELETE)
+    {
+        // Upon start, no state was stored --> fresh start!
+        state = START;
+    }
+}
+
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
     usbRequest_t    *rq = (usbRequest_t *)data;
     static uchar    dataBuffer[4];
 
-    if(rq->bRequest == REQ_GET_HEADER) // set the application header code
+    if (rq->bRequest == REQ_GET_HEADER) // set the application header code
     {
         dataBuffer[0] = AVR002_CODE >> 0; // Lower byte of AVR002_CODE value
         dataBuffer[1] = AVR002_CODE >> 8; // Higher byte of AVR002_CODE value
@@ -108,6 +161,22 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
         usbMsgPtr = (unsigned short)dataBuffer;
 
         return 2; // Device code value is 2 byte long
+    }
+    else if (rq->bRequest == REQ_GET_DATA1) // Get state
+    {
+
+    }
+    else if (rq->bRequest == REQ_GET_DATA2) // Get session
+    {
+
+    }
+    else if (rq->bRequest == REQ_GET_DATA3) // Get error-code
+    {
+
+    }
+    else if (rq->bRequest == REQ_GET_DATA4) // Get entry count
+    {
+
     }
 
     return 0;
@@ -224,52 +293,6 @@ void Wait()
         _delay_loop_2(0);
         */
     _delay_us(50);
-}
-
-void initSession()
-{
-    gSessionCounter = 0;
-    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
-}
-
-void createNewSession()
-{
-    eeprom_read_block(&gSessionCounter, MEMADDR_SESSION, 1);
-    ++gSessionCounter;
-    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
-}
-
-uint16_t readEntryCount()
-{
-    eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
-    return gEntryCounter;
-}
-
-void storeEntryCount(uint16_t entryCount)
-{
-    gEntryCounter = entryCount;
-    eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
-}
-
-void initEntryCount()
-{
-    gEntryCounter = 0;
-    storeEntryCount(gEntryCounter);
-}
-
-void checkStartState()
-{
-    eeprom_read_block(&state, MEMADDR_STATE, 1);
-
-    if (state != START ||
-        state != INIT ||
-        state != RECORD ||
-        state != UPLOAD ||
-        state != DELETE)
-    {
-        // Upon start, no state was stored --> fresh start!
-        state = START;
-    }
 }
 
 int __attribute__((noreturn)) main(void)
