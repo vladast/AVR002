@@ -12,13 +12,11 @@
 #include <avr/eeprom.h>
 #include <util/delay.h>
 
-//#include <ioavr.h>
-//#include <inavr.h>
-
 #include <avr/pgmspace.h>   /* required by usbdrv.h */
 #include "usbdrv.h"
 #include "oddebug.h"
 #include "reqdefs.h"
+#include "usbdefs.h"
 
 #include "24c64.h"
 
@@ -99,47 +97,20 @@ int isPinPressed(int pin)
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
 {
-    PORTC ^= _BV(PORTC0); // Test;toggle
-
     usbRequest_t    *rq = (usbRequest_t *)data;
-    static uchar    dataBuffer[4];  /* buffer must stay valid when usbFunctionSetup returns */
+    static uchar    dataBuffer[4];
 
     if(rq->bRequest == REQ_GET_HEADER) // set the application header code
     {
-        //PORTC ^= _BV(PORTC0); // Test;toggle
-
-        uchar data = 0;
-        uchar buffer[4] = {0};
-
-        //eeprom_read_block(&data, 0, 1);
-        //eeprom_read_block(buffer, 0, 4);
-
-        uint16_t i;
-        for (i = 0; i < 4; ++i)
-        {
-            dataBuffer[i] = EEReadByte(i);
-            _delay_us(50);
-            //Wait();
-        }
-
-//        dataBuffer[0] = gCounter;
-//        dataBuffer[1] = isPinPressed(SWITCH1);
-//        dataBuffer[2] = isPinPressed(SWITCH2);
-//        dataBuffer[3] = data;
-
-
-        /*
-        dataBuffer[0] = rq->bRequest;//buffer[0];
-        dataBuffer[1] = rq->bRequest;//buffer[1];
-        dataBuffer[2] = rq->bRequest;//buffer[2];
-        dataBuffer[3] = rq->bRequest;//buffer[3];
-        */
+        dataBuffer[0] = AVR002_CODE >> 0; // Lower byte of AVR002_CODE value
+        dataBuffer[1] = AVR002_CODE >> 8; // Higher byte of AVR002_CODE value
 
         usbMsgPtr = (unsigned short)dataBuffer;
-        return 4;
+
+        return 2; // Device code value is 2 byte long
     }
 
-    return 0;   /* default for not implemented requests: return no data back to host */
+    return 0;
 }
 
 /* ------------------------------------------------------------------------- */
