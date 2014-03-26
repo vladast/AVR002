@@ -1,26 +1,41 @@
-# Name: Makefile
-# Project:          AVR002 - USB touch-switch stats
+# Name:             Makefile
+# Project:          AVR002 - AVR-based event logger with USB support
 # Author:           Vladimir Stankovic
 # Creation Date:    20140321
 # Tabsize:          4
 # Copyright:        n/a
 # License:          n/a
 
+# Project specific
 DEVICE  = atmega8
 PROGRAMMER = vladast
 PROJECT = avr002
 MAIN    = $(PROJECT)
-F_CPU   = 16000000
-FUSE_L  = 0xEF # Use internal PLL oscillator
-FUSE_H  = 0xD9 # Among other, allow serial programming
 
-AVRDUDE = avrdude -c $(PROGRAMMER) -p $(DEVICE) -P /dev/ttyS0 -b 19200 -v
+# V-USB defines
+USB_CFG_DEVICE_ID = LB, HB # LB: Low Byte / HB: High Byte [in hex format]
+USB_CFG_VENDOR_ID = LB, HB # LB: Low Byte / HB: High Byte [in hex format]
 
+USB_CFG_VENDOR_NAME = 'T', 'E', 'S', 'T'
+USB_CFG_VENDOR_NAME_LEN = 4
+
+USB_CFG_DEVICE_NAME = 'T', 'E', 'S', 'T'
+USB_CFG_DEVICE_NAME_LEN = 4
+
+# Compiler specific
+F_CPU   = 16000000      # 16MHz CPU frequency - same as xtal
 CFLAGS  = -Iusbdrv -I. -DDEBUG_LEVEL=0
 OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o usbdrv/oddebug.o ./24c64.o $(MAIN).o
+COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) \
+        $(CFLAGS) -mmcu=$(DEVICE) \
+        -DUSB_CFG_DEVICE_ID="$(USB_CFG_DEVICE_ID)" -DUSB_CFG_VENDOR_ID="$(USB_CFG_VENDOR_ID)" \
+        -DUSB_CFG_VENDOR_NAME="$(USB_CFG_VENDOR_NAME)" -DUSB_CFG_VENDOR_NAME_LEN=$(USB_CFG_VENDOR_NAME_LEN) \
+        -DUSB_CFG_DEVICE_NAME="$(USB_CFG_DEVICE_NAME)" -DUSB_CFG_DEVICE_NAME_LEN=$(USB_CFG_DEVICE_NAME_LEN)
 
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
-#COMPILE = avr-c++ -Wall -Os -DF_CPU=$(F_CPU) $(CFLAGS) -mmcu=$(DEVICE)
+# AVR programmer specific
+FUSE_L  = 0xEF          # Use external crystal oscillator
+FUSE_H  = 0xD9          # Among other, allow serial programming
+AVRDUDE = avrdude -c $(PROGRAMMER) -p $(DEVICE) -P /dev/ttyS0 -b 19200 -v
 
 # symbolic targets:
 help:
