@@ -43,10 +43,10 @@
 #define REQ_RESET_SESSION   REQ_SET_DATA2
 
 // Predefined memory locations on CPU's EEPROM
-#define MEMADDR_STATE       0
-#define MEMADDR_SESSION     1
-#define MEMADDR_ERROR       2
-#define MEMADDR_ENTRIES     3
+#define MEMADDR_STATE       0x0000
+#define MEMADDR_SESSION     0x0001
+#define MEMADDR_ERROR       0x0002
+#define MEMADDR_ENTRIES     0x0003
 
 #define MEM_HW_ADDRESS      0x50
 
@@ -97,34 +97,42 @@ int isPinPressed(int pin)
 
 void initSession()
 {
-    gSessionCounter = 0;
-    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
-}
-
-void createNewSession()
-{
-    eeprom_read_block(&gSessionCounter, MEMADDR_SESSION, 1);
-    ++gSessionCounter;
-    eeprom_write_block(&gSessionCounter, MEMADDR_SESSION, 1);
+    uint8_t sessionCounter = 0x00;
+    eeprom_write_block(&sessionCounter, MEMADDR_SESSION, 1);
+    gSessionCounter = sessionCounter;
 }
 
 uint8_t readSession()
 {
-    uint8_t sessionCount;
-    eeprom_read_block(&sessionCount, MEMADDR_SESSION, 1);
-    return sessionCount;
+    uint8_t sessionCounter;
+    eeprom_read_block(&sessionCounter, MEMADDR_SESSION, 1);
+    return sessionCounter;
+}
+
+void createNewSession()
+{
+    uint8_t sessionCounter;
+
+    while(!eeprom_is_ready());
+    eeprom_read_block(&sessionCounter, MEMADDR_SESSION, 1);
+
+    sessionCounter++;
+
+    while(!eeprom_is_ready());
+    eeprom_write_block(&sessionCounter, MEMADDR_SESSION, 1);
+    gSessionCounter = sessionCounter;
 }
 
 uint16_t readEntryCount()
 {
-    eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+    eeprom_read_block(&gEntryCounter, MEMADDR_ENTRIES, 2);
     return gEntryCounter;
 }
 
 void storeEntryCount(uint16_t entryCount)
 {
     gEntryCounter = entryCount;
-    eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 1);
+    eeprom_write_block(&gEntryCounter, MEMADDR_ENTRIES, 2);
 }
 
 void initEntryCount()
@@ -133,19 +141,41 @@ void initEntryCount()
     storeEntryCount(gEntryCounter);
 }
 
+uint8_t readCurrentState()
+{
+    uint8_t currentState;
+    eeprom_read_block(&currentState, MEMADDR_STATE, 1);
+    return currentState;
+}
+
 void checkStartState()
 {
     eeprom_read_block(&state, MEMADDR_STATE, 1);
 
-    if (state != START ||
-        state != INIT ||
-        state != RECORD ||
-        state != UPLOAD ||
-        state != DELETE)
+    if(state == 0xff)
     {
-        // Upon start, no state was stored --> fresh start!
+        // Upon start, no state was stored --> fresh start after session reset or reprogram!
         state = START;
     }
+}
+
+void setCurrentState(state_t state_to_store)
+{
+    state = state_to_store;
+    eeprom_write_block(&state, MEMADDR_STATE, 1);
+}
+
+uint8_t readErrorCode()
+{
+    uint8_t errorCode;
+    eeprom_read_block(&errorCode, MEMADDR_ERROR, 1);
+    return errorCode;
+}
+
+void storeErrorCode(uint8_t errorCode)
+{
+    eeprom_write_block(&errorCode, MEMADDR_ERROR, 1);
+    return errorCode;
 }
 
 usbMsgLen_t usbFunctionSetup(uchar data[8])
@@ -159,24 +189,41 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
         dataBuffer[1] = AVR002_CODE >> 8; // Higher byte of AVR002_CODE value
 
         usbMsgPtr = (unsigned short)dataBuffer;
-
-        return 2; // Device code value is 2 byte long
+        return 2; // Device code value is 2 byte long (uint16_t)
     }
     else if (rq->bRequest == REQ_GET_DATA1) // Get state
     {
+        dataBuffer[0] = readCurrentState();
+        usbMsgPtr = (unsigned short)dataBuffer;
+        return 1; // Device's state value is 1 byte long (uint8_t)
+    }
+    else if (rq->bRequest == REQ_SET_DATA1)
+    {
+        if(rq->wValue.bytes[0] == INIT)
+        {
+            setCurrentState(INIT);
+        }
 
     }
     else if (rq->bRequest == REQ_GET_DATA2) // Get session
     {
-
+        dataBuffer[0] = readSession();
+        usbMsgPtr = (unsigned short)dataBuffer;
+        return 1; // Device's session value is 1 byte long (uint8_t)
     }
     else if (rq->bRequest == REQ_GET_DATA3) // Get error-code
     {
-
+        dataBuffer[0] = readErrorCode();
+        usbMsgPtr = (unsigned short)dataBuffer;
+        return 1; // Device's session value is 1 byte long (uint8_t)
     }
     else if (rq->bRequest == REQ_GET_DATA4) // Get entry count
     {
-
+        uint16_t entryCount = readEntryCount();
+        dataBuffer[0] = entryCount >> 0; // Lower byte of entryCount
+        dataBuffer[1] = entryCount >> 8; // Higher byte of entryCount
+        usbMsgPtr = (unsigned short)dataBuffer;
+        return 2; // Device's entry count value is 2 byte long (uint16_t)
     }
 
     return 0;
@@ -195,9 +242,6 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
 /* ------------------------------------------------------------------------- */
 ISR (TIMER0_OVF_vect)
 {
-    // Temp: Toggle LED with every interrupt
-//    PORTC ^= _BV(PORTC0);
-
     isButtonWithPressed = isPinPressed(BUTTON_WITH);
     isButtonThrowPressed = isPinPressed(BUTTON_THROW);
     isButtonWithoutPressed = isPinPressed(BUTTON_WITHOUT);
@@ -300,15 +344,13 @@ int __attribute__((noreturn)) main(void)
     // Check whether state entry is initialized
     checkStartState();
 
-    // Increment session number
-    createNewSession();
-
     for(;;)
     {
         switch (state)
         {
         case START:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
+
             initSession();
             initEntryCount();
 
@@ -319,13 +361,17 @@ int __attribute__((noreturn)) main(void)
             break;
         case INIT:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
+
             if(isPinPressed(BUTTON_THROW))
             {
+                // Increment session number
+                createNewSession();
+
                 gCounter = 0;
                 gOffsetCounter = 0;
                 gUsbConnectCounter = 0;
                 gEventCounter = 0;
-                isUsbInitialized = FALSE;
+                //isUsbInitialized = FALSE;
 
                 // Define PC0 as output
                 DDRC = _BV(PORTC0);
@@ -356,7 +402,7 @@ int __attribute__((noreturn)) main(void)
                 storeEntryCount(++entryCount);
             }
 
-
+/*
             unsigned char messageBuf[4];
 
 
@@ -381,14 +427,18 @@ int __attribute__((noreturn)) main(void)
                 }
             }
 
-            state = UPLOAD;
+
             eeprom_write_block(messageBuf, 0, 4);
+*/
+
+            state = UPLOAD;
 
             // Temp: toggle LED
             PORTC ^= _BV(PORTC0);
 
             break;
         case UPLOAD:
+        {
             eeprom_write_block(&state, MEMADDR_STATE, 1);
 
             if(isUsbInitialized == FALSE)
@@ -419,6 +469,7 @@ int __attribute__((noreturn)) main(void)
             usbPoll();
 
             break;
+        }
         case DELETE:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
             break;
