@@ -50,7 +50,8 @@
 
 #define MEM_HW_ADDRESS      0x50
 
-#define USB_CONNECT_CNT     1000L
+#define USB_CONNECT_CNT     5L      // Count 5 Timer1 interrupts
+#define SWITCH_PRESS_CNT    50L     // Count 20 Timer0 interrupts
 
 #define FALSE   0
 #define TRUE    1
@@ -62,9 +63,12 @@ volatile uint8_t    gOffsetCounter;
 volatile uint8_t    gSessionCounter;
 volatile uint16_t   gEntryCounter;
 volatile uint16_t   gEventCounter;
+//volatile uint8_t    gButtonLedCounter;
 volatile short      isButtonWithPressed = FALSE;
 volatile short      isButtonThrowPressed = FALSE;
 volatile short      isButtonWithoutPressed = FALSE;
+volatile short      isButtonLedOn = FALSE;
+volatile short      isUsbConnectCounterStarted = FALSE;
 volatile int        idPressedButton = SWID_UNKNOWN;
 volatile short      isButtonValueReady = FALSE; // Returned to FALSE when written onto eeprom
 short               isUsbInitialized = FALSE;
@@ -152,11 +156,22 @@ void checkStartState()
 {
     eeprom_read_block(&state, MEMADDR_STATE, 1);
 
-    if(state == 0xff)
+//    START   = 0xA1, // Device is being started
+//    INIT    = 0xB2, // Initialize device
+//    RECORD  = 0xC3, // Record events (touch-switch states)
+//    UPLOAD  = 0xD4, // Upload records to USB host
+//    DELETE  = 0xE5, // Erase external EEPROM
+//    RESES   = 0xF6  // Reinit session counter
+
+    if(state != START || state != INIT || state != RECORD || state != UPLOAD || state != DELETE || state != RESES)
     {
         // Upon start, no state was stored --> fresh start after session reset or reprogram!
         state = START;
     }
+    /*else if (state == RECORD)
+    {
+        state = UPLOAD;
+    }*/
 }
 
 void setCurrentState(state_t state_to_store)
@@ -246,20 +261,22 @@ ISR (TIMER0_OVF_vect)
     isButtonThrowPressed = isPinPressed(BUTTON_THROW);
     isButtonWithoutPressed = isPinPressed(BUTTON_WITHOUT);
 
-    if(isButtonValueReady == FALSE)
-        PORTC ^= _BV(PORTC0);
+//    if(isButtonValueReady == TRUE)
+//        PORTC ^= _BV(PORTC0);
 
-    if(isButtonValueReady == FALSE &&
-            (isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE))
+    // Check if any switch is being pressed
+    if((isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE))
     {
         if(isButtonWithPressed == TRUE && isButtonThrowPressed == TRUE ||
                 isButtonWithPressed == TRUE && isButtonWithoutPressed == TRUE ||
                 isButtonThrowPressed == TRUE && isButtonWithoutPressed == TRUE)
         {
             // Invalid state
-            PORTC ^= _BV(PORTC0);
+            //PORTC ^= _BV(PORTC0);
+            // TODO: Store error-code with event count for the event
         }
-        else
+
+        if(isButtonValueReady == FALSE)
         {
             if(isButtonWithPressed == TRUE)
             {
@@ -272,19 +289,64 @@ ISR (TIMER0_OVF_vect)
             else if(isButtonThrowPressed == TRUE)
             {
                 idPressedButton = SWID_THROW;
-
-                if(gUsbConnectCounter >= USB_CONNECT_CNT)
-                    state = UPLOAD;
-                    gUsbConnectCounter = 0;
             }
+
             isButtonValueReady = TRUE;
+
+            PORTC = _BV(PORTC0);
+            isButtonLedOn = TRUE;
+
+            isUsbConnectCounterStarted = FALSE;
+            gUsbConnectCounter = 0;
+        }
+        else
+        {
+            if(idPressedButton == SWID_THROW)
+            {
+                if(isUsbConnectCounterStarted == FALSE)
+                {
+                    isUsbConnectCounterStarted = TRUE;
+                    gUsbConnectCounter = 0;
+                }
+                else
+                {
+                    // Check if "throw" switch is being pressedd for long time
+                    if(gUsbConnectCounter >= USB_CONNECT_CNT)
+                    {
+                        state = UPLOAD;
+                        gUsbConnectCounter = 0;
+                        isUsbConnectCounterStarted = FALSE;
+
+                        isButtonLedOn = FALSE;
+                        PORTC = 0;
+
+                        // ... AND ERASE THE LAST STORED ENTRY FROM EEPROM AND DECREMENT EVENT COUNTER
+                    }
+                }
+            }
+            else
+            {
+                isUsbConnectCounterStarted = FALSE;
+                gUsbConnectCounter = 0;
+            }
         }
     }
+    else // On raising edge, when user lifts up finger from switch, turn-off LED
+    {
+        isButtonLedOn = FALSE;
+        PORTC = 0;
+    }
+
+
+    /*
     else
     {
         idPressedButton = SWID_UNKNOWN;
+        isUsbConnectCounterStarted = FALSE;
         gUsbConnectCounter = 0;
     }
+    */
+
 }
 
 /* ------------------------------------------------------------------------- */
@@ -294,12 +356,14 @@ ISR (TIMER1_COMPA_vect)
 {
     // Increment counter every 1 sec
     ++gCounter;
-    ++gUsbConnectCounter;
+    if(isUsbConnectCounterStarted == TRUE)
+        ++gUsbConnectCounter;
 }
 
 void initTimer0()
 {
-    TCCR0 |= _BV(CS02) | _BV(CS00);
+    //TCCR0 |= _BV(CS01) | _BV(CS00);
+    TCCR0 |= _BV(CS02);
     TCNT0 = 0;
     TIMSK |= _BV(TOIE0);
 }
@@ -375,7 +439,7 @@ int __attribute__((noreturn)) main(void)
 
                 // Define PC0 as output
                 DDRC = _BV(PORTC0);
-                PORTC = _BV(PORTC0);
+//                PORTC = _BV(PORTC0);
 
                 // Initialize timers
                 cli();
@@ -385,6 +449,12 @@ int __attribute__((noreturn)) main(void)
                 //Init EEPROM
                 EEOpen();
 
+//                PORTC ^= _BV(PORTC0);
+
+//                _delay_ms(500);
+
+//                PORTC ^= _BV(PORTC0);
+
                 state = RECORD;
             }
 
@@ -392,6 +462,7 @@ int __attribute__((noreturn)) main(void)
         case RECORD:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
 
+            /*
             if(isButtonValueReady == TRUE)
             {
                 uint16_t entryCount = readEntryCount();
@@ -400,6 +471,34 @@ int __attribute__((noreturn)) main(void)
 
                 // TODO: Increment entry count and store it in local eeprom
                 storeEntryCount(++entryCount);
+                isButtonValueReady = FALSE;
+            }
+            */
+
+
+            // NOTE: one of the assumptions is that the minimum time distance between two events is 5 seconds.
+            if(gCounter == 5)
+            {
+                while(isButtonLedOn == TRUE);
+
+                //PORTC ^= _BV(PORTC0);
+
+                //cli();
+                gCounter = 0;
+                //PORTC ^= _BV(PORTC0);
+                //sei();
+
+
+                if(isButtonValueReady == TRUE)
+                {
+                    // TODO: Write to ext. memory
+
+                    // TODO: Increment entry count and store it in local eeprom
+                    ++gEventCounter;
+                    uint16_t entryCount = readEntryCount();
+                    storeEntryCount(++entryCount);
+                    isButtonValueReady = FALSE;
+                }
             }
 
 /*
@@ -431,10 +530,13 @@ int __attribute__((noreturn)) main(void)
             eeprom_write_block(messageBuf, 0, 4);
 */
 
-            state = UPLOAD;
+
+            // State UPLOAD is reached when THROW is being pressed for 5 secs
+            //state = UPLOAD;
+
 
             // Temp: toggle LED
-            PORTC ^= _BV(PORTC0);
+            //PORTC ^= _BV(PORTC0);
 
             break;
         case UPLOAD:
@@ -476,15 +578,6 @@ int __attribute__((noreturn)) main(void)
         default:
 
             break;
-        }
-
-        if(gCounter == 5)
-        {
-            //cli();
-            gCounter = 0;
-            //PORTC ^= _BV(PORTC0);
-            //sei();
-            ++gEventCounter;
         }
     }
 }
