@@ -101,7 +101,7 @@ int isPinPressed(int pin)
 
 void initSession()
 {
-    uint8_t sessionCounter = 0x00;
+    uint8_t sessionCounter;
     eeprom_write_block(&sessionCounter, MEMADDR_SESSION, 1);
     gSessionCounter = sessionCounter;
 }
@@ -166,7 +166,12 @@ void checkStartState()
     if(state != START || state != INIT || state != RECORD || state != UPLOAD || state != DELETE || state != RESES)
     {
         // Upon start, no state was stored --> fresh start after session reset or reprogram!
-        state = START;
+        //state = START;
+        state = INIT; // temp
+    }
+    else
+    {
+        state = INIT; // temp
     }
     /*else if (state == RECORD)
     {
@@ -216,6 +221,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
     {
         if(rq->wValue.bytes[0] == INIT)
         {
+            // TODO: Gracefully disconnect USB
             setCurrentState(INIT);
         }
 
