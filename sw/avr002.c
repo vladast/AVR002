@@ -74,6 +74,8 @@ volatile short      isButtonValueReady = FALSE; // Returned to FALSE when writte
 short               isUsbInitialized = FALSE;
 short               isStarted = FALSE;
 
+volatile uint16_t   gEEpromCurrentAddress = 0;
+
 //static uchar currAddress = 0;
 //static uchar bytesRemaining = 0;
 
@@ -217,7 +219,7 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
         usbMsgPtr = (unsigned short)dataBuffer;
         return 1; // Device's state value is 1 byte long (uint8_t)
     }
-    else if (rq->bRequest == REQ_SET_DATA1)
+    else if (rq->bRequest == REQ_SET_DATA1) // Set state
     {
         if(rq->wValue.bytes[0] == INIT)
         {
@@ -244,7 +246,16 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
         dataBuffer[0] = entryCount >> 0; // Lower byte of entryCount
         dataBuffer[1] = entryCount >> 8; // Higher byte of entryCount
         usbMsgPtr = (unsigned short)dataBuffer;
+
+        gEEpromCurrentAddress = 0;
+
         return 2; // Device's entry count value is 2 byte long (uint16_t)
+    }
+    else if (rq->bRequest == REQ_GET_DATA5) // Get entry count
+    {
+        dataBuffer[0] = EEReadByte(gEEpromCurrentAddress++);
+        usbMsgPtr = (unsigned short)dataBuffer;
+        return 1; // Device's entry count value is 2 byte long (uint16_t)
     }
 
     return 0;
@@ -498,6 +509,7 @@ int __attribute__((noreturn)) main(void)
                 if(isButtonValueReady == TRUE)
                 {
                     // TODO: Write to ext. memory
+                    EEWriteByte(gEventCounter, gEventCounter + 10);
 
                     // TODO: Increment entry count and store it in local eeprom
                     ++gEventCounter;
