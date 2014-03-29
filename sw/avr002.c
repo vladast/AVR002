@@ -53,7 +53,7 @@
 #define USB_CONNECT_CNT     5L      // Count 5 Timer1 interrupts
 #define SWITCH_PRESS_CNT    50L     // Count 20 Timer0 interrupts
 
-#define SAMPLING_TIME_WINDOW 5
+#define SAMPLING_TIME_WINDOW 1
 
 #define FALSE   0
 #define TRUE    1
