@@ -32,9 +32,9 @@
 #define BUTTON_WITHOUT      SWITCH3
 
 #define SWID_UNKNOWN        0x00
-#define SWID_WITH           0xe1
-#define SWID_THROW          0xe2
-#define SWID_WITHOUT        0xe3
+#define SWID_WITH           0x01
+#define SWID_THROW          0x02
+#define SWID_WITHOUT        0x03
 
 #define REQ_GET_STATE       REQ_GET_DATA1
 #define REQ_GET_SESSION     REQ_GET_DATA2
@@ -53,11 +53,14 @@
 #define USB_CONNECT_CNT     5L      // Count 5 Timer1 interrupts
 #define SWITCH_PRESS_CNT    50L     // Count 20 Timer0 interrupts
 
+#define SAMPLING_TIME_WINDOW 5
+
 #define FALSE   0
 #define TRUE    1
 
 volatile uint8_t    timer0_ticks;
-volatile uint16_t   gCounter;
+volatile uint16_t   gCounter = 0;
+volatile uint16_t   gPrevCounter = 0;
 volatile uint16_t   gUsbConnectCounter;
 volatile uint8_t    gOffsetCounter;
 volatile uint8_t    gSessionCounter;
@@ -494,14 +497,14 @@ int __attribute__((noreturn)) main(void)
 
 
             // NOTE: one of the assumptions is that the minimum time distance between two events is 5 seconds.
-            if(gCounter == 5)
+            if(gCounter % SAMPLING_TIME_WINDOW == 0)
             {
                 while(isButtonLedOn == TRUE);
 
                 //PORTC ^= _BV(PORTC0);
 
                 //cli();
-                gCounter = 0;
+                //gCounter = 0;
                 //PORTC ^= _BV(PORTC0);
                 //sei();
 
@@ -509,12 +512,38 @@ int __attribute__((noreturn)) main(void)
                 if(isButtonValueReady == TRUE)
                 {
                     // TODO: Write to ext. memory
-                    EEWriteByte(gEventCounter, gEventCounter + 10);
+                    // TODO: Build value to bi written based upon SWID and the size of the counter
+                    // if counter is greater then MAX value, another byte should be written containing the rest of the counter bits
+
+                    uint8_t dataToStore = 0x00;
+                    uint16_t entryCount = readEntryCount();
+                    uint16_t counterDiff = (gCounter - gPrevCounter) / SAMPLING_TIME_WINDOW;
+                    gPrevCounter = gCounter;
+
+                    if(counterDiff <= 0x1F) // 0x1F: All five bits reserved for CNT value are set
+                    {
+                        // Store SWID and OV together with CNT
+                        dataToStore = (idPressedButton << 6) | (0 << 6) | (uint8_t)counterDiff;
+                        EEWriteByte(entryCount++, dataToStore);
+                    }
+                    else
+                    {
+                        // Store SWID and OV together with 5 lower bits of CNT
+                        dataToStore = (idPressedButton << 6) | (1 << 6) | (uint8_t)counterDiff;
+                        EEWriteByte(entryCount++, dataToStore);
+
+                        // + store the upper bits of CNT in the next memory slot
+                        dataToStore = (counterDiff >> 5);
+                        EEWriteByte(entryCount++, dataToStore);
+                    }
+
+
+                    //EEWriteByte(gEntryCounter, gCounter);EEWriteByte(gEntryCounter, gCounter);
+                    //++gEventCounter;
 
                     // TODO: Increment entry count and store it in local eeprom
-                    ++gEventCounter;
-                    uint16_t entryCount = readEntryCount();
-                    storeEntryCount(++entryCount);
+                    //uint16_t entryCount = readEntryCount();
+                    storeEntryCount(entryCount);
                     isButtonValueReady = FALSE;
                 }
             }
