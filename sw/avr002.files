@@ -15,5 +15,9 @@ usi_i2c_master.c
 usi_i2c_master.h
 USI_TWI_Master.c
 USI_TWI_Master.cpp
-USI_TWI_Master.h
 Makefile
+TWI_Master.c
+TWI_Master.h
+24c64.h
+24c64.c
+usbdrv/License.txt
