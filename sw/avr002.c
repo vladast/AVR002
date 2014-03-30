@@ -318,17 +318,20 @@ ISR (TIMER0_OVF_vect)
                 idPressedButton = SWID_THROW;
             }
 
-            isButtonValueReady = TRUE;
+            if(state == RECORD)
+            {
+                isButtonValueReady = TRUE;
 
-            PORTC = _BV(PORTC0);
-            isButtonLedOn = TRUE;
+                PORTC = _BV(PORTC0);
+                isButtonLedOn = TRUE;
 
-            isUsbConnectCounterStarted = FALSE;
-            gUsbConnectCounter = 0;
+                isUsbConnectCounterStarted = FALSE;
+                gUsbConnectCounter = 0;
+            }
         }
         else
         {
-            if(idPressedButton == SWID_THROW)
+            if(idPressedButton == SWID_THROW && isButtonLedOn == TRUE)
             {
                 if(isUsbConnectCounterStarted == FALSE)
                 {
