@@ -364,7 +364,7 @@ ISR (TIMER0_OVF_vect)
                         isButtonLedOn = FALSE;
                         PORTC = 0;
 
-                        // TODO: ... AND ERASE THE LAST STORED ENTRY FROM EEPROM AND DECREMENT EVENT COUNTER
+                        // ... AND ERASE THE LAST STORED ENTRY FROM EEPROM AND DECREMENT EVENT COUNTER
                     }
                 }
             }
@@ -491,7 +491,7 @@ int __attribute__((noreturn)) main(void)
             {
                 while(isButtonLedOn == TRUE);
 
-                if(isButtonValueReady == TRUE)
+                if(isButtonValueReady == TRUE && state == RECORD)
                 {
                     uint8_t dataToStore = 0x00;
                     uint16_t entryCount = readEntryCount();
