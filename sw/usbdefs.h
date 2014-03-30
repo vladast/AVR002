@@ -18,11 +18,9 @@
 #ifndef USBDEFS_H
 #define USBDEFS_H
 
-#define VLADAST_VENDOR_NAME     'V', 'l', 'a', 'd', 'a', 's', 't'
-
 /* AVR001 project defines from usbconfig file */
 #define AVR001_VENDOR_ID        USB_CFG_VENDOR_ID
-#define AVR001_VENDOR_NAME      VLADAST_VENDOR_NAME
+#define AVR001_VENDOR_NAME      USB_CFG_VENDOR_NAME
 #define AVR001_DEVICE_ID        USB_CFG_DEVICE_ID
 #define AVR001_DEVICE_NAME      USB_CFG_DEVICE_NAME
 #define AVR001_DEVICE_NAME_LEN  USB_CFG_DEVICE_NAME_LEN
@@ -30,7 +28,7 @@
 
 /* AVR002 project defines from usbconfig file */
 #define AVR002_VENDOR_ID        USB_CFG_VENDOR_ID
-#define AVR002_VENDOR_NAME      VLADAST_VENDOR_NAME
+#define AVR002_VENDOR_NAME      USB_CFG_VENDOR_NAME
 #define AVR002_DEVICE_ID        USB_CFG_DEVICE_ID
 #define AVR002_DEVICE_NAME      USB_CFG_DEVICE_NAME
 #define AVR002_DEVICE_NAME_LEN  USB_CFG_DEVICE_NAME_LEN
