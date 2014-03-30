@@ -4,7 +4,7 @@
  * Creation Date: 2005-04-01
  * Tabsize: 4
  * Copyright: (c) 2005 by OBJECTIVE DEVELOPMENT Software GmbH
- * License: GNU GPL v2 (see License.txt), GNU GPL v3 or proprietary (CommercialLicense.txt)
+ * License: GNU GPL v2 (see License.txt under usbdrv directory), GNU GPL v3 or proprietary (CommercialLicense.txt)
  */
 
 #ifndef __usbconfig_h_included__
