@@ -281,9 +281,6 @@ ISR (TIMER0_OVF_vect)
     isButtonThrowPressed = isPinPressed(BUTTON_THROW);
     isButtonWithoutPressed = isPinPressed(BUTTON_WITHOUT);
 
-//    if(isButtonValueReady == TRUE)
-//        PORTC ^= _BV(PORTC0);
-
     // Check if any switch is being pressed
     if((isButtonWithPressed == TRUE || isButtonThrowPressed == TRUE || isButtonWithoutPressed == TRUE))
     {
@@ -341,7 +338,7 @@ ISR (TIMER0_OVF_vect)
                         isButtonLedOn = FALSE;
                         PORTC = 0;
 
-                        // ... AND ERASE THE LAST STORED ENTRY FROM EEPROM AND DECREMENT EVENT COUNTER
+                        // TODO: ... AND ERASE THE LAST STORED ENTRY FROM EEPROM AND DECREMENT EVENT COUNTER
                     }
                 }
             }
@@ -383,7 +380,6 @@ ISR (TIMER1_COMPA_vect)
 
 void initTimer0()
 {
-    //TCCR0 |= _BV(CS01) | _BV(CS00);
     TCCR0 |= _BV(CS02);
     TCNT0 = 0;
     TIMSK |= _BV(TOIE0);
@@ -449,7 +445,6 @@ int __attribute__((noreturn)) main(void)
 
                 // Define PC0 as output
                 DDRC = _BV(PORTC0);
-//                PORTC = _BV(PORTC0);
 
                 // Initialize timers
                 cli();
@@ -459,12 +454,6 @@ int __attribute__((noreturn)) main(void)
                 //Init EEPROM
                 EEOpen();
 
-//                PORTC ^= _BV(PORTC0);
-
-//                _delay_ms(500);
-
-//                PORTC ^= _BV(PORTC0);
-
                 state = RECORD;
             }
 
@@ -472,39 +461,12 @@ int __attribute__((noreturn)) main(void)
         case RECORD:
             eeprom_write_block(&state, MEMADDR_STATE, 1);
 
-            /*
-            if(isButtonValueReady == TRUE)
-            {
-                uint16_t entryCount = readEntryCount();
-
-                // TODO: Write to ext. memory
-
-                // TODO: Increment entry count and store it in local eeprom
-                storeEntryCount(++entryCount);
-                isButtonValueReady = FALSE;
-            }
-            */
-
-
-            // NOTE: one of the assumptions is that the minimum time distance between two events is 5 seconds.
             if(gCounter % SAMPLING_TIME_WINDOW == 0)
             {
                 while(isButtonLedOn == TRUE);
 
-                //PORTC ^= _BV(PORTC0);
-
-                //cli();
-                //gCounter = 0;
-                //PORTC ^= _BV(PORTC0);
-                //sei();
-
-
                 if(isButtonValueReady == TRUE)
                 {
-                    // TODO: Write to ext. memory
-                    // TODO: Build value to bi written based upon SWID and the size of the counter
-                    // if counter is greater then MAX value, another byte should be written containing the rest of the counter bits
-
                     uint8_t dataToStore = 0x00;
                     uint16_t entryCount = readEntryCount();
                     uint16_t counterDiff = (gCounter - gPrevCounter) / SAMPLING_TIME_WINDOW;
@@ -527,54 +489,10 @@ int __attribute__((noreturn)) main(void)
                         EEWriteByte(entryCount++, dataToStore);
                     }
 
-
-                    //EEWriteByte(gEntryCounter, gCounter);EEWriteByte(gEntryCounter, gCounter);
-                    //++gEventCounter;
-
-                    // TODO: Increment entry count and store it in local eeprom
-                    //uint16_t entryCount = readEntryCount();
                     storeEntryCount(entryCount);
                     isButtonValueReady = FALSE;
                 }
             }
-
-/*
-            unsigned char messageBuf[4];
-
-
-            int read = 0;
-
-            if(read == 0)
-            {
-                uint16_t i;
-                for (i = 0; i < 4; ++i)
-                {
-                    EEWriteByte(i, i + 5);
-                    Wait();
-                }
-            }
-            else
-            {
-                uint16_t i;
-                for (i = 0; i < 4; ++i)
-                {
-                    messageBuf[i] = EEReadByte(i);
-                    Wait();
-                }
-            }
-
-
-            eeprom_write_block(messageBuf, 0, 4);
-*/
-
-
-            // State UPLOAD is reached when THROW is being pressed for 5 secs
-            //state = UPLOAD;
-
-
-            // Temp: toggle LED
-            //PORTC ^= _BV(PORTC0);
-
             break;
         case UPLOAD:
         {
