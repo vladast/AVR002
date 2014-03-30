@@ -294,7 +294,7 @@ ISR (TIMER0_OVF_vect)
             // Invalid state
             //PORTC ^= _BV(PORTC0);
             // TODO: Store error-code with event count for the event
-            break;
+            return;
         }
 
         if(isButtonValueReady == FALSE)
