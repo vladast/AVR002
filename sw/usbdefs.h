@@ -18,26 +18,10 @@
 #ifndef USBDEFS_H
 #define USBDEFS_H
 
-/* AVR001 project defines from usbconfig file */
-#define AVR001_VENDOR_ID        USB_CFG_VENDOR_ID
-#define AVR001_VENDOR_NAME      USB_CFG_VENDOR_NAME
-#define AVR001_DEVICE_ID        USB_CFG_DEVICE_ID
-#define AVR001_DEVICE_NAME      USB_CFG_DEVICE_NAME
-#define AVR001_DEVICE_NAME_LEN  USB_CFG_DEVICE_NAME_LEN
-#define AVR001_CODE             0xa001
+/* AVR project codes */
+#define AVR001_CODE     0xa001
+#define AVR002_CODE     0xa002
 
-/* AVR002 project defines from usbconfig file */
-#define AVR002_VENDOR_ID        USB_CFG_VENDOR_ID
-#define AVR002_VENDOR_NAME      USB_CFG_VENDOR_NAME
-#define AVR002_DEVICE_ID        USB_CFG_DEVICE_ID
-#define AVR002_DEVICE_NAME      USB_CFG_DEVICE_NAME
-#define AVR002_DEVICE_NAME_LEN  USB_CFG_DEVICE_NAME_LEN
-#define AVR002_CODE             0xa002
-
-#define USB_CFG_VENDOR_ID       AVR002_VENDOR_ID
-#define USB_CFG_VENDOR_NAME     AVR002_VENDOR_NAME
-#define USB_CFG_DEVICE_ID       AVR002_DEVICE_ID
-#define USB_CFG_DEVICE_NAME     AVR002_DEVICE_NAME
-#define USB_CFG_DEVICE_CODE     AVR002_CODE
+#define DEVICE_CODE     AVR002_CODE
 
 #endif // USBDEFS_H
