@@ -413,17 +413,6 @@ void disableTimers()
     TIMSK ^= _BV(OCIE1A);
 }
 
-void Wait()
-{
-    /*
-    uint8_t i;
-
-    for(i=0;i<100;i++)
-        _delay_loop_2(0);
-        */
-    _delay_us(50);
-}
-
 int __attribute__((noreturn)) main(void)
 {
     // Check whether state entry is initialized
