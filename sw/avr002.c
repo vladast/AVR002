@@ -94,12 +94,12 @@ volatile uint16_t   gEEpromCurrentAddress = 0;
 
 typedef enum
 {
-    START   = 0xA1, // Device is being started
-    INIT    = 0xB2, // Initialize device
-    RECORD  = 0xC3, // Record events (touch-switch states)
-    UPLOAD  = 0xD4, // Upload records to USB host
-    DELETE  = 0xE5, // Erase external EEPROM
-    RESES   = 0xF6  // Reinit session counter
+    START   = 0xa1, // Device is being started
+    INIT    = 0xb2, // Initialize device
+    RECORD  = 0xc3, // Record events (touch-switch states)
+    UPLOAD  = 0xd4, // Upload records to USB host
+    DELETE  = 0xe5, // Erase external EEPROM
+    RESES   = 0xf6  // Reinit session counter
 } state_t;
 
 volatile state_t state = INIT;
@@ -115,7 +115,7 @@ int isPinPressed(int pin)
 
 void initSession()
 {
-    uint8_t sessionCounter;
+    uint8_t sessionCounter = 0;
     eeprom_write_block(&sessionCounter, MEMADDR_SESSION, 1);
     gSessionCounter = sessionCounter;
 }
@@ -168,7 +168,8 @@ uint8_t readCurrentState()
 
 void checkStartState()
 {
-    eeprom_read_block(&state, MEMADDR_STATE, 1);
+    state_t startState;
+    eeprom_read_block(&startState, MEMADDR_STATE, 1);
 
 //    START   = 0xA1, // Device is being started
 //    INIT    = 0xB2, // Initialize device
@@ -177,16 +178,29 @@ void checkStartState()
 //    DELETE  = 0xE5, // Erase external EEPROM
 //    RESES   = 0xF6  // Reinit session counter
 
-    if(state != START || state != INIT || state != RECORD || state != UPLOAD || state != DELETE || state != RESES)
+    if(startState != START && startState != INIT && startState != RECORD && startState != UPLOAD && startState != DELETE && startState != RESES)
     {
         // Upon start, no state was stored --> fresh start after session reset or reprogram!
+
+        storeErrorCode(startState);
         //state = START;
-        state = INIT; // temp
+
+        /* [Issue #2] temp fix */
+        state = INIT;
+        /* [Issue #2] temp fix */
     }
     else
     {
         state = INIT; // temp
     }
+
+    /* [Issue #2] temp fix */
+    if(readSession() == 0xff)
+    {
+        initSession();
+    }
+    /* [Issue #2] temp fix */
+
     /*else if (state == RECORD)
     {
         state = UPLOAD;
