@@ -1,9 +1,18 @@
-/* Name:    reqdefs.h
- * Project: AVR002:	Multi-switch event recorder with USB support
- * Author:  Vladimir Stankovic
- * Creation Date: 2014-03-22
- * Copyright: N/A
- * License: N/A
+/*
+ * Copyright (C) 2014  Vladimir Stankovic
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>
  */
 
 #ifndef REQDEFS_H
@@ -15,6 +24,7 @@
 #define REQ_GET_DATA2           0x11
 #define REQ_GET_DATA3           0x12
 #define REQ_GET_DATA4           0x13
+#define REQ_GET_DATA5           0x14
 
 #define REQ_SET_DATA1           0x20
 #define REQ_SET_DATA2           0x21
