@@ -252,7 +252,11 @@ usbMsgLen_t usbFunctionSetup(uchar data[8])
             // TODO: Gracefully disconnect USB
             setCurrentState(INIT);
         }
-
+        else if(rq->wValue.bytes[0] == START)
+        {
+            // TODO: Gracefully disconnect USB
+            setCurrentState(START);
+        }
     }
     else if (rq->bRequest == REQ_GET_DATA2) // Get session
     {
@@ -462,6 +466,7 @@ int __attribute__((noreturn)) main(void)
             {
                 // Increment session number
                 createNewSession();
+                initEntryCount();
 
                 gCounter = 0;
                 gOffsetCounter = 0;
