@@ -1,4 +1,3 @@
-AVR002
-======
+# AVR-based event recorder with USB support
 
-AVR-based event logger with USB support
+
