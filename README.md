@@ -9,7 +9,7 @@ Event recorder device based on AVR processor, with the USB support enabled via V
 
 Key components of the hardware implementation are:
 * **Atmel's Atmega8 processor**: a heart of the device, within which all logic lies.
-* **SN's 24c64 EEPROM**: a persistent memory of the device.
+* **ST's 24c64 EEPROM**: a persistent memory of the device.
 
 Schematic diagram and PCB outline are created with Eagle v6 and can be found within **hw** directory.
 
@@ -79,15 +79,6 @@ make burn_fuses
 
 Of course, both of those commands should be issued as is from **sw** directory.
 
-
-## Author and Licence
-
-**avr-based-event-recorder-with-usb-support** repository is maintained by *Vladimir Stankovic*
-
-This project is licensed under *GPL Version 2*. Please, refer to LICENSE file for the full text of the license.
-
-Portions of this project are based upon 3rd party libraries listed in the following section.
-
 ## 3rd party libraries
 
 Following libraries were used:
@@ -96,3 +87,8 @@ Following libraries were used:
 V-USB is licensed under GPL version 2.
 * **24C EEPROM SPI**: Enables easy SPI communication with external EEPROM. It's usage is well described on http://extremeelectronics.co.in/avr-tutorials/easy-24c-i2c-serial-eeprom-interfacing-with-avr-microcontrollers/
 
+## Author and Licence
+
+**avr-based-event-recorder-with-usb-support** repository is maintained by *Vladimir Stankovic*.
+
+This project is licensed under *GPL Version 2*. Please, refer to LICENSE file for the full text of the license.
