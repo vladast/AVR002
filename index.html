@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="avr-based-event-recorder-with-usb-support : AVR-based event logger with USB support" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>avr-based-event-recorder-with-usb-support</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/vladast/avr-based-event-recorder-with-usb-support">View on GitHub</a>
+
+          <h1 id="project_title">avr-based-event-recorder-with-usb-support</h1>
+          <h2 id="project_tagline">AVR-based event logger with USB support</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/vladast/avr-based-event-recorder-with-usb-support/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/vladast/avr-based-event-recorder-with-usb-support/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="avr-based-event-recorder-with-usb-support" class="anchor" href="#avr-based-event-recorder-with-usb-support"><span class="octicon octicon-link"></span></a>AVR-based event recorder with USB support</h1>
+
+<p>Event recorder device based on AVR processor, with the USB support enabled via V-USB library.</p>
+
+<ul>
+<li>
+<strong>Project code name</strong>: Fisherman's Friend</li>
+<li>
+<strong>Homepage</strong>: <a href="https://github.com/vladast/avr-based-event-recorder-with-usb-support">https://github.com/vladast/avr-based-event-recorder-with-usb-support</a>
+</li>
+</ul><h2>
+<a name="hardware" class="anchor" href="#hardware"><span class="octicon octicon-link"></span></a>Hardware</h2>
+
+<p>Key components of the hardware implementation are:</p>
+
+<ul>
+<li>
+<strong>Atmel's Atmega8 processor</strong>: a heart of the device, within which all logic lies.</li>
+<li>
+<strong>ST's 24c64 EEPROM</strong>: a persistent memory of the device.</li>
+</ul><p>Schematic diagram and PCB outline are created with Eagle v6 and can be found within <strong>hw</strong> directory.</p>
+
+<h2>
+<a name="software" class="anchor" href="#software"><span class="octicon octicon-link"></span></a>Software</h2>
+
+<p>Software part of the project consist of two parts:</p>
+
+<ul>
+<li>
+<strong>Firmware</strong>: a program being uploaded to device.</li>
+<li>
+<strong>Test application</strong>: a program running on host machine.</li>
+</ul><p>Programming languages used: C &amp; C++.</p>
+
+<p>Source code is located within <strong>sw</strong> directory.</p>
+
+<h2>
+<a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h2>
+
+<p>There are couple of properties that have to be updated within Makefile before build can be started - following values should be set correctly:</p>
+
+<ul>
+<li>
+<strong>PROGRAMMER</strong>: By default, it states <em>rs232</em> which is the programmer used on test circuit. It should be set to the programmer's name from avrdude's configuration.</li>
+<li>
+<strong>USB_CFG_VENDOR_ID</strong>: USB VID 16bit value (see Makefile comments for more info, or refer to V-USB's site)</li>
+<li>
+<strong>USB_CFG_DEVICE_ID</strong>: USB PID 16bit value (see Makefile comments for more info, or refer to V-USB's site)</li>
+<li>
+<strong>USB_CFG_VENDOR_NAME</strong>: Name of the vendor. By default, for testing purposes, it's set to "TEST"</li>
+<li>
+<strong>USB_CFG_VENDOR_NAME_LEN</strong>: Number of chars within your vendor's name. For "TEST" string, that number is 4.</li>
+<li>
+<strong>USB_CFG_DEVICE_NAME</strong>: Name of your product. By default, for testing purposes, it's set to "TEST"</li>
+<li>
+<strong>USB_CFG_DEVICE_NAME_LEN</strong>: Number of chars within your vendor's name. For "TEST" string, that number is 4.</li>
+</ul><h2>
+<a name="build-procedure" class="anchor" href="#build-procedure"><span class="octicon octicon-link"></span></a>Build procedure</h2>
+
+<p>At this moment, Makefile has only been intended for usage on Linux-based build machines with gcc and avr-gcc compilers installed. 
+In general, with some modifications, it can be used on other platforms.</p>
+
+<p>To build both firmware and test application run:</p>
+
+<pre><code>make build
+</code></pre>
+
+<p>To build only device's firmware (HEX file):</p>
+
+<pre><code>make build_hex
+</code></pre>
+
+<p>And to build only test application for host machine:</p>
+
+<pre><code>make build_test
+</code></pre>
+
+<p>To list all options from Makefile, run:</p>
+
+<pre><code>make
+</code></pre>
+
+<h2>
+<a name="uploading-firmware-onto-device" class="anchor" href="#uploading-firmware-onto-device"><span class="octicon octicon-link"></span></a>Uploading firmware onto device</h2>
+
+<p>Used Makefile is configured for usage of <em>avrdude</em> programmer. To upload firmware to AVR located on device run:</p>
+
+<pre><code>make burn_firmware
+</code></pre>
+
+<p><strong>Note</strong>: To use external crystal oscillator, for AVR chip used (which is Atmega8 at this moment), fuses has to be set first. To do so, run:</p>
+
+<pre><code>make burn_fuses
+</code></pre>
+
+<p>Of course, both of those commands should be issued as is from <strong>sw</strong> directory.</p>
+
+<h2>
+<a name="3rd-party-libraries" class="anchor" href="#3rd-party-libraries"><span class="octicon octicon-link"></span></a>3rd party libraries</h2>
+
+<p>Following libraries are used:</p>
+
+<ul>
+<li>
+<strong>V-USB</strong>: A firmware-only USB driver for Atmel AVR Microcontrollers, enabling USB communication with host device. Library itself and documentation can be found on <a href="http://www.obdev.at/vusb/">www.obdev.at/vusb/</a>. 
+V-USB is licensed under GPL version 2.</li>
+<li>
+<strong>24C EEPROM SPI</strong>: Enables easy SPI communication with external EEPROM. It's usage is well described on <a href="http://extremeelectronics.co.in/avr-tutorials/easy-24c-i2c-serial-eeprom-interfacing-with-avr-microcontrollers/">http://extremeelectronics.co.in/avr-tutorials/easy-24c-i2c-serial-eeprom-interfacing-with-avr-microcontrollers/</a>
+</li>
+</ul><h2>
+<a name="author-and-licence" class="anchor" href="#author-and-licence"><span class="octicon octicon-link"></span></a>Author and Licence</h2>
+
+<p><strong>avr-based-event-recorder-with-usb-support</strong> repository is maintained by <em>Vladimir Stankovic</em> (<a href="https://github.com/vladast" class="user-mention">@vladast</a>).</p>
+
+<p>This project is licensed under <em>GPL Version 2</em>. Please, refer to LICENSE file for the full text of the license.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">avr-based-event-recorder-with-usb-support maintained by <a href="https://github.com/vladast">vladast</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
