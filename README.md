@@ -92,6 +92,7 @@ Portions of this project are based upon 3rd party libraries listed in the follow
 
 Following libraries were used:
 
-* **V-USB**: A firmware-only USB driver for Atmel AVR Microcontrollers, enabling USB communication with host device. Library itself and documentation can be found on www.obdev.at/vusb/. V-USB is licensed under GPL version 2.
+* **V-USB**: A firmware-only USB driver for Atmel AVR Microcontrollers, enabling USB communication with host device. Library itself and documentation can be found on www.obdev.at/vusb/. 
+V-USB is licensed under GPL version 2.
 * **24C EEPROM SPI**: Enables easy SPI communication with external EEPROM. It's usage is well described on http://extremeelectronics.co.in/avr-tutorials/easy-24c-i2c-serial-eeprom-interfacing-with-avr-microcontrollers/
 
