@@ -171,18 +171,20 @@ void checkStartState()
     state_t startState;
     eeprom_read_block(&startState, MEMADDR_STATE, 1);
 
-//    START   = 0xA1, // Device is being started
-//    INIT    = 0xB2, // Initialize device
-//    RECORD  = 0xC3, // Record events (touch-switch states)
-//    UPLOAD  = 0xD4, // Upload records to USB host
-//    DELETE  = 0xE5, // Erase external EEPROM
-//    RESES   = 0xF6  // Reinit session counter
+    // START   = 0xA1, // Device is being started
+    // INIT    = 0xB2, // Initialize device
+    // RECORD  = 0xC3, // Record events (touch-switch states)
+    // UPLOAD  = 0xD4, // Upload records to USB host
+    // DELETE  = 0xE5, // Erase external EEPROM
+    // RESES   = 0xF6  // Reinit session counter
 
     if(startState != START && startState != INIT && startState != RECORD && startState != UPLOAD && startState != DELETE && startState != RESES)
     {
         // Upon start, no state was stored --> fresh start after session reset or reprogram!
 
-        storeErrorCode(startState);
+        // NOTE: Use following line to store detected state; for start state troubleshooting purposes.
+        //storeErrorCode(startState);
+
         //state = START;
 
         /* [Issue #2] temp fix */
@@ -506,13 +508,13 @@ int __attribute__((noreturn)) main(void)
                     if(counterDiff <= 0x1F) // 0x1F: All five bits reserved for CNT value are set
                     {
                         // Store SWID and OV together with CNT
-                        dataToStore = (idPressedButton << 6) | (0 << 6) | (uint8_t)counterDiff;
+                        dataToStore = (idPressedButton << 6) | (0 << 5) | (uint8_t)counterDiff;
                         EEWriteByte(entryCount++, dataToStore);
                     }
                     else
                     {
                         // Store SWID and OV together with 5 lower bits of CNT
-                        dataToStore = (idPressedButton << 6) | (1 << 6) | (uint8_t)counterDiff;
+                        dataToStore = (idPressedButton << 6) | (1 << 5) | ((uint8_t)counterDiff & 0x1F);
                         EEWriteByte(entryCount++, dataToStore);
 
                         // + store the upper bits of CNT in the next memory slot
