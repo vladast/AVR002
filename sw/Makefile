@@ -22,7 +22,7 @@
 # Project specific values
 DEVICE          = atmega8
 PROGRAMMER      = rs232
-PROJECT         = avr-based-usb-event-logger
+PROJECT         = avr-based-event-recorder-with-usb-support
 MAIN            = $(PROJECT)
 
 # V-USB defines
